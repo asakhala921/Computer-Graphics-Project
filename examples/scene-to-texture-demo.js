@@ -60,7 +60,7 @@ export class Scene_To_Texture_Demo extends Scene {                   // **Scene_
 
         program_state.set_camera(Mat4.look_at(vec3(0, 0, 5), vec3(0, 0, 0), vec3(0, 1, 0)));
         program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
-
+        console.log(dt)
         // Update persistent matrix state:
         this.cube_1.post_multiply(Mat4.rotation(this.spin * dt * 30 / 60 * 2 * Math.PI, 1, 0, 0));
         this.cube_2.post_multiply(Mat4.rotation(this.spin * dt * 20 / 60 * 2 * Math.PI, 0, 1, 0));
