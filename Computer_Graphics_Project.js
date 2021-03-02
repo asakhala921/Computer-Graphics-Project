@@ -3,7 +3,89 @@ import {defs, tiny} from '/examples/common.js';
 const {
     Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture
 } = tiny;
-const {Triangle, Square, Cube, Subdivision_Sphere} = defs;
+const {Triangle, Square, Cube, Subdivision_Sphere, Textured_Phong} = defs;
+
+
+class Human extends Shape {
+    constructor() {
+        super("position", "normal", "texture_coord");
+        Cube.insert_transformed_copy_into(this, [], Mat4.identity()
+            .times(Mat4.translation(-3, 0, 0))
+            .times(Mat4.rotation(10, 0, 0, 5))
+            .times(Mat4.scale(3, 1, 1)));
+        Cube.insert_transformed_copy_into(this, [], Mat4.identity()
+            .times(Mat4.translation(3, 0, 0))
+            .times(Mat4.rotation(-10, 0, 0, 5))
+            .times(Mat4.scale(3, 1, 1)));
+        Subdivision_Sphere.insert_transformed_copy_into(this, [3], Mat4.identity()
+            .times(Mat4.translation(0, 0, 0))
+            .times(Mat4.scale(1,1,1))
+            .times(Mat4.translation(0, 3.8, 0)));
+        Subdivision_Sphere.insert_transformed_copy_into(this, [3], Mat4.identity()
+            .times(Mat4.scale(2,4,2))
+            .times(Mat4.translation(0, 0, 0)));
+        Subdivision_Sphere.insert_transformed_copy_into(this, [3], Mat4.identity()
+            .times(Mat4.scale(1,2,1))
+            .times(Mat4.translation(0, -2, 0))
+            .times(Mat4.translation(0, 2, 0))
+            .times(Mat4.rotation(10,0,0,5))
+            .times(Mat4.translation(0,2,0)));
+        Subdivision_Sphere.insert_transformed_copy_into(this, [3], Mat4.identity()
+            .times(Mat4.scale(1,2,1))
+            .times(Mat4.translation(0, -2, 0))
+            .times(Mat4.translation(0, 2, 0))
+            .times(Mat4.rotation(10,0,0,-5))
+            .times(Mat4.translation(0,2,0)));
+        let weapon_transformation =  Mat4.identity().
+            times(Mat4.translation(-5,-3,0));
+        Weapon_A.insert_transformed_copy_into( this, [],  weapon_transformation);
+    }
+
+}
+
+class Weapon_A extends Shape {
+    constructor() {
+        super("position", "normal", "texture_coord");
+        let cube_transform = {};
+        for(var i = -1; i <= 1; i++) {
+           for (var j = -1; j <= 1; j++) {
+              cube_transform = Mat4.identity().times(Mat4.scale(0.4, 0.4, 0.4));
+              for(var k = 0; k < 8; k++) {
+                cube_transform = cube_transform
+                  .times(Mat4.scale(1, 1, 1))
+                  .times(Mat4.rotation(i*5, 0, 2, j+0.5))
+                  .times(Mat4.translation(i, 2, j));
+                Cube.insert_transformed_copy_into( this, [], cube_transform );
+              }
+           }
+        }  
+    }
+
+}
+
+
+class Player {
+    constructor(){
+        this.shapes = {
+            human: new Human(),
+        }
+
+        this.materials = {
+           rgb: new Material(new Textured_Phong(), {
+                color: color(1, 1, 1, 1),
+                ambient: .4, diffusivity: 0.2, specularity: 0.3,
+                texture: new Texture("assets/rgb.jpg", "LINEAR_MIPMAP_LINEAR")
+            }),
+        }
+    }
+   
+    draw(context, program_state) {
+        this.human_0 = Mat4.identity()
+            .times(Mat4.scale(5, 5, 5));
+        this.shapes.human.draw(context, program_state, this.human_0, this.materials.rgb)
+    }
+
+}
 
 
 class Wall extends Shape {
@@ -107,7 +189,7 @@ export class Computer_Graphics_Project extends Scene{
         super();
 
         this.world = new World();
-
+        this.player = new Player();
         this.initial_camera_location = Mat4.look_at(vec3(0, 20, 40), vec3(0, 20, 0), vec3(0, 1, 0));
     }
     make_control_panel() {
@@ -129,5 +211,6 @@ export class Computer_Graphics_Project extends Scene{
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000000)];
 
         this.world.draw(context, program_state);
+        this.player.draw(context, program_state);
     }
 }
