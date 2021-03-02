@@ -79,9 +79,12 @@ class Water {
             cube: new Cube(),
         }
 
-        this.waterMaterial = new Material(new defs.Fake_Bump_Map(1), {
-            ambient: .5,
-            texture: new Texture("assets/water.jpeg")
+        this.waterMaterial = new Material(new Water_Shader(2), {
+            ambient: 1,
+            diffusivity: 0.2,
+            specularity: 0.8,
+            texture: new Texture("assets/water.jpeg"),
+            color: color(1, 1, 1, 1)
         })
 
         this.water = Mat4.identity()
@@ -107,11 +110,6 @@ class World {
             sky: new Material(new defs.Fake_Bump_Map(1), {
                 ambient: 1,
                 texture: new Texture("assets/clouds.png")
-            }),
-            ground: new Material(new defs.Fake_Bump_Map(1), {
-                ambient: .5,
-                diffusivity: .3,
-                texture: new Texture("assets/rock.jpg")
             }),
         }
         this.size = SIZE;
@@ -185,4 +183,27 @@ export class Computer_Graphics_Project extends Scene{
         this.world.draw(context, program_state);
 
     }
+}
+
+class Water_Shader extends defs.Textured_Phong {
+    fragment_glsl_code() {
+        return this.shared_glsl_code() + `
+            varying vec2 f_tex_coord;
+            uniform sampler2D texture;
+    
+            void main(){
+                // Sample the texture image in the correct place:
+                vec4 tex_color = texture2D( texture, f_tex_coord );
+                if( tex_color.w < .01 ) discard;
+                // Slightly disturb normals based on sampling the same image that was used for texturing:
+                vec3 bumped_N  = N + tex_color.rgb - .5*vec3(1,1,1);
+                // Compute an initial (ambient) color:
+                gl_FragColor = vec4( ( tex_color.xyz + shape_color.xyz ) * ambient, shape_color.w * tex_color.w ); 
+                // Compute the final color with contributions from lights:
+                gl_FragColor.xyz += phong_model_lights( normalize( bumped_N ), vertex_worldspace );
+                gl_FragColor.a = 0.25;
+              } `;
+    }
+
+
 }
