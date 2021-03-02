@@ -5,21 +5,19 @@ const {
 } = tiny;
 const {Triangle, Square, Cube} = defs;
 
-class Floor extends Shape {
+let SIZE = 100
+
+class Floor {
     // Adapted from Grid_Patch
     constructor() {
-        super("position", "normal", "texture_coord");
-        this.size = 256
-        this.max_height = 10;
-
         this.height_map = new Image();
-        this.height_map.src = "/assets/heightmap.png";
+        this.height_map.src = "/assets/island_heightmap.png";
 
         this.height_map.onload = () => {
-            var canvas = document.createElement("canvas");
+            let canvas = document.createElement("canvas");
             canvas.width = this.height_map.width;
             canvas.height = this.height_map.height;
-            var context = canvas.getContext('2d');
+            let context = canvas.getContext('2d');
             context.drawImage(this.height_map, 0, 0);
             this.data = context.getImageData(0, 0, this.height_map.width, this.height_map.height);
 
@@ -45,7 +43,7 @@ class Floor extends Shape {
                 let height = this.heights[Math.floor(t * columns) - 1][Math.floor(s * rows) - 1]
                 return vec3(2 * t - 1, height, 2 * s - 1);
             }
-            this.shapes = {sheet: new defs.Grid_Patch(rows - 1, columns - 1, row_operation, column_operation, [[0, rows], [0, columns]], this.heights)}
+            this.shapes = {sheet: new defs.Grid_Patch(rows - 1, columns - 1, row_operation, column_operation, [[0, rows], [0, columns]])}
         }
 
         this.ground = new Material(new defs.Fake_Bump_Map(1), {
@@ -58,7 +56,7 @@ class Floor extends Shape {
 
     getHeight(data, x, y) {
         let position = (x + data.width * y) * 4
-        let scale = 100
+        let scale = 150
         let r = data.data[position]
         let g = data.data[position + 1]
         let b = data.data[position + 2]
@@ -69,19 +67,41 @@ class Floor extends Shape {
     draw(context, program_state) {
         if(!this.shapes) return;
         this.floor = Mat4.identity()
-            .times(Mat4.scale(this.size, 1, this.size))
-            //.times(Mat4.rotation(Math.PI / 2, 1,0,0))
+            .times(Mat4.scale(SIZE, 1, SIZE))
         ;
         this.shapes.sheet.draw(context, program_state, this.floor, this.ground);
     }
 }
 
+class Water {
+    constructor() {
+        this.shapes = {
+            cube: new Cube(),
+        }
+
+        this.waterMaterial = new Material(new defs.Fake_Bump_Map(1), {
+            ambient: .5,
+            texture: new Texture("assets/water.jpeg")
+        })
+
+        this.water = Mat4.identity()
+            .times(Mat4.scale(SIZE, 5, SIZE))
+    }
+
+    draw(context, program_state) {
+        this.shapes.cube.draw(context, program_state, this.water, this.waterMaterial)
+    }
+
+
+}
+
 class World {
     constructor(){
         this.shapes = {
-            floor: new Floor(),
             cube: new Cube(),
         }
+        this.water = new Water()
+        this.floor = new Floor()
 
         this.materials = {
             sky: new Material(new defs.Fake_Bump_Map(1), {
@@ -94,10 +114,8 @@ class World {
                 texture: new Texture("assets/rock.jpg")
             }),
         }
-        this.size = 256;
+        this.size = SIZE;
 
-        this.floor = Mat4.identity()
-        //    .times(Mat4.scale(this.size, 1, this.size));
         this.frontWall = Mat4.identity()
             .times(Mat4.translation(0,this.size/2,-this.size))
             .times(Mat4.scale(this.size, this.size, 1))
@@ -118,7 +136,8 @@ class World {
 
 
     draw(context, program_state) {
-        this.shapes.floor.draw(context, program_state)
+        this.floor.draw(context, program_state)
+        this.water.draw(context, program_state)
         this.shapes.cube.draw(context, program_state, this.frontWall, this.materials.sky)
         this.shapes.cube.draw(context, program_state, this.backWall, this.materials.sky)
         this.shapes.cube.draw(context, program_state, this.leftWall, this.materials.sky)
@@ -160,15 +179,10 @@ export class Computer_Graphics_Project extends Scene{
             Math.PI / 4, context.width / context.height, .1, 1000);
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
 
-        const light_position = vec4(50, 50, 50, 1);
-        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000000)];
+        const light_position = vec4(75, 75, 75, 1);
+        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
 
         this.world.draw(context, program_state);
 
-        this.platform = Mat4.identity()
-            .times(Mat4.translation(-25, -40, -25))
-            .times(Mat4.scale(50,50,50))
-            .times(Mat4.rotation(Math.PI/2, 1, 0, 0))
-        this.shapes.platform.draw(context, program_state, this.platform, this.materials.metal)
     }
 }
