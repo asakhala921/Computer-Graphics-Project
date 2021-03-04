@@ -3,9 +3,112 @@ import {defs, tiny} from '/examples/common.js';
 const {
     Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture
 } = tiny;
-const {Triangle, Square, Cube} = defs;
+const {Triangle, Square, Cube, Torus, Surface_Of_Revolution, Capped_Cylinder} = defs;
 
-let SIZE = 100
+let SIZE = 256
+
+class Steps extends Shape {
+    constructor() {
+        super("position", "normal", "texture_coord");
+        this.drawSteps(Mat4.identity()); //right
+    }
+
+    drawSteps(transform) {
+        Cube.insert_transformed_copy_into(this, [], transform.times(Mat4.scale(5,1,5)));
+        Cube.insert_transformed_copy_into(this, [], transform.times(Mat4.translation(0,1/1.25,-2)).times(Mat4.scale(5,1,5)));
+        Cube.insert_transformed_copy_into(this, [], transform.times(Mat4.translation(0,2/1.25, -4)).times(Mat4.scale(5,1,5)));
+        Cube.insert_transformed_copy_into(this, [], transform.times(Mat4.translation(0,3/1.25, -6)).times(Mat4.scale(5,1,5)));
+
+    }
+}
+
+class Half_Torus extends Shape {
+    // Build a donut shape.  An example of a surface of revolution.
+    constructor(rows, columns, texture_range=[[0, 1], [0, 1]]) {
+        super("position", "normal", "texture_coord");
+        const circle_points = Array(rows).fill(vec3(1 / 3, 0, 0))
+            .map((p, i, a) => Mat4.translation(-1/3, 0, 0)
+                .times(Mat4.rotation(i / (a.length - 1) * 2 * Math.PI, 0, -1, 0))
+                .times(Mat4.scale(1, 1, 3))
+                .times(p.to4(1)).to3());
+        Surface_Of_Revolution.insert_transformed_copy_into(this, [rows, columns, circle_points, texture_range, 3.2]);
+    }
+}
+
+
+class Exterior extends Shape {
+    constructor() {
+        let stageSize = 25
+        let offSet = 10
+        super("position", "normal", "texture_coord");
+        Half_Torus.insert_transformed_copy_into(this, [10, 10, [[0, 2], [0, 2]]], Mat4.translation(0, 6, stageSize + offSet).times(Mat4.rotation(Math.PI,0,0,Math.PI).times(Mat4.scale(12,4,5)))) // Top
+        //Cube.insert_transformed_copy_into(this, [], Mat4.translation(0,6, stageSize + offSet).times(Mat4.scale(5,1,1))) // Blocky Roof
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(6,0, stageSize + offSet).times(Mat4.scale(1,6,1))) //Right Pillar
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(-6,0, stageSize + offSet).times(Mat4.scale(1,6,1))) //Left Pillar
+
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(-(stageSize + offSet)/2 - 3,0, stageSize + offSet).times(Mat4.scale((stageSize + offSet)/2 - 3,5,.5))) //Left-Front Wall
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation((stageSize + offSet)/2 + 3,0, stageSize + offSet).times(Mat4.scale((stageSize + offSet)/2 - 3,5,.5))) //Left-Front Wall
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(0,0, -(stageSize + offSet)).times(Mat4.scale((stageSize + offSet),5,.5))) //Back Wall
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(-(stageSize + offSet),0, 0).times(Mat4.scale(.5,5,(stageSize + offSet)))) //Left Wall
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation((stageSize + offSet),0, 0).times(Mat4.scale(.5,5,(stageSize + offSet)))) //Right Wall
+
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation((stageSize + offSet),0, (stageSize + offSet)).times(Mat4.scale(.5,10, .5))) //Front-Right Corner
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(-(stageSize + offSet),0, (stageSize + offSet)).times(Mat4.scale(.5,10, .5))) //Front-Left Corner
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation((stageSize + offSet),0, -(stageSize + offSet)).times(Mat4.scale(.5,10, .5))) //Back-Right Corner
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(-(stageSize + offSet),0, -(stageSize + offSet)).times(Mat4.scale(.5,10, .5))) //Back-Left Corner
+
+
+
+    }
+}
+
+
+class Arena {
+    constructor() {
+        this.stageSize = 25
+        this.pathLength = 40
+
+        this.shapes = {
+            exterior: new Exterior(),
+            stage: new Cube(),
+            path: new Cube(),
+            wall: new Cube(),
+            steps: new Steps(),
+        }
+        this.shapes.stage.arrays.texture_coord.forEach(p => p.scale_by(10))
+        this.shapes.path.arrays.texture_coord.forEach(p => p.scale_by(4))
+        this.materials = {
+            concrete: new Material(new defs.Fake_Bump_Map(1), {
+                color: hex_color("#000000"),
+                ambient: .75, diffusivity: .4, specularity: 0.1,
+                texture: new Texture("assets/concrete.png")
+            }),
+        }
+
+    }
+
+    draw(context, program_state) {
+        let transform = Mat4.identity()
+        transform = transform.times(Mat4.translation(0, 10, 0))
+
+        this.stage = transform
+            .times(Mat4.scale(this.stageSize, 4, this.stageSize))
+        this.shapes.stage.draw(context, program_state, this.stage, this.materials.concrete)
+        this.steps = transform
+            .times(Mat4.translation(0, 0, this.stageSize + 4))
+        this.shapes.steps.draw(context, program_state, this.steps, this.materials.concrete)
+        this.exterior = transform
+        this.shapes.exterior.draw(context, program_state, this.exterior, this.materials.concrete)
+
+        this.path = this.steps
+            .times(Mat4.translation(0,0,this.pathLength + 5))
+            .times(Mat4.scale(5,1,this.pathLength))
+        this.shapes.path.draw(context, program_state, this.path, this.materials.concrete)
+
+    }
+
+
+}
 
 class Floor {
     // Adapted from Grid_Patch
@@ -79,12 +182,12 @@ class Water {
             cube: new Cube(),
         }
 
-        this.waterMaterial = new Material(new Water_Shader(2), {
-            ambient: 1,
-            diffusivity: 0.2,
+        this.waterMaterial = new Material(new Water_Shader(1), {
+            ambient: .4,
+            diffusivity: 1,
             specularity: 0.8,
             texture: new Texture("assets/water.jpeg"),
-            color: color(1, 1, 1, 1)
+            color: color(0, 0, 1, 1)
         })
 
         this.water = Mat4.identity()
@@ -94,8 +197,6 @@ class Water {
     draw(context, program_state) {
         this.shapes.cube.draw(context, program_state, this.water, this.waterMaterial)
     }
-
-
 }
 
 class World {
@@ -131,8 +232,6 @@ class World {
             .times(Mat4.scale(this.size, 1, this.size))
     }
 
-
-
     draw(context, program_state) {
         this.floor.draw(context, program_state)
         this.water.draw(context, program_state)
@@ -141,6 +240,7 @@ class World {
         this.shapes.cube.draw(context, program_state, this.leftWall, this.materials.sky)
         this.shapes.cube.draw(context, program_state, this.rightWall, this.materials.sky)
         this.shapes.cube.draw(context, program_state, this.top, this.materials.sky)
+
     }
 }
 
@@ -152,13 +252,7 @@ export class Computer_Graphics_Project extends Scene{
             platform: new defs.Capped_Cylinder(1, 10, [[0, 2], [0, 1]]),
         }
         this.world = new World();
-
-        this.materials = {
-            metal: new Material(new defs.Fake_Bump_Map(1), {
-                ambient: 1,
-                texture: new Texture("assets/tai_image.jpg")
-            }),
-        }
+        this.arena = new Arena();
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 20, 40), vec3(0, 20, 0), vec3(0, 1, 0));
     }
@@ -181,6 +275,7 @@ export class Computer_Graphics_Project extends Scene{
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
 
         this.world.draw(context, program_state);
+        this.arena.draw(context, program_state);
 
     }
 }
@@ -201,9 +296,7 @@ class Water_Shader extends defs.Textured_Phong {
                 gl_FragColor = vec4( ( tex_color.xyz + shape_color.xyz ) * ambient, shape_color.w * tex_color.w ); 
                 // Compute the final color with contributions from lights:
                 gl_FragColor.xyz += phong_model_lights( normalize( bumped_N ), vertex_worldspace );
-                gl_FragColor.a = 0.25;
+                gl_FragColor.a = 0.5;
               } `;
     }
-
-
 }
