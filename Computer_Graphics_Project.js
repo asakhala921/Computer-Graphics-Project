@@ -41,6 +41,9 @@ class Human extends Shape {
         Weapon_A.insert_transformed_copy_into( this, [],  weapon_transformation);
     }
 
+    attack(){
+
+    }
 }
 
 class Weapon_A extends Shape {
@@ -82,7 +85,8 @@ class Player {
     draw(context, program_state) {
         this.human_0 = Mat4.identity()
             .times(Mat4.scale(5, 5, 5));
-        this.shapes.human.draw(context, program_state, this.human_0, this.materials.rgb)
+        this.shapes.human.draw(context, program_state, this.human_0, this.materials.rgb);
+
     }
 
 }
@@ -132,6 +136,26 @@ class Floor {
         this.shapes.sheet.draw(context, program_state, this.floor, this.ground);
     }
 }
+class Bullet{
+    constructor(){
+        this.shapes = {
+            ball: new  defs.Subdivision_Sphere(4)
+        }
+        this.materials = {
+            sun: new Material(new defs.Phong_Shader(),
+                {ambient: 1.0, color: color(1,0,0,1)})
+        }
+        this.m1 = Mat4.identity().times(Mat4.translation(0, 25, 0));
+        this.m2 = this.m1.times(Mat4.translation(0, 0, -10));
+        this.mBig = (this.m2).times(Mat4.scale(5, 5, 5));
+    }
+
+    
+    draw(context, program_state, offset) {
+        var newM = this.mBig.times(offset);
+        this.shapes.ball.draw(context, program_state, newM, this.materials.sun);
+    }
+}
 
 class World {
     constructor(){
@@ -141,6 +165,10 @@ class World {
         }
 
         this.materials = {
+            explode: new Material(new defs.Fake_Bump_Map(1), {
+                ambient: 1,
+                texture: new Texture("assets/explosion.png")
+            }),
             sky: new Material(new defs.Fake_Bump_Map(1), {
                 ambient: 1,
                 texture: new Texture("assets/clouds.png")
@@ -158,6 +186,7 @@ class World {
         this.frontWall = Mat4.identity()
             .times(Mat4.translation(0,this.size/2,-this.size))
             .times(Mat4.scale(this.size, this.size, 1))
+        //console.log("this front wall is "+this.frontWall);
         this.backWall = Mat4.identity()
             .times(Mat4.translation(0,this.size/2,this.size))
             .times(Mat4.scale(this.size, this.size, 1))
@@ -174,9 +203,14 @@ class World {
 
 
 
-    draw(context, program_state) {
+    draw(context, program_state, collision) {
         this.shapes.floor.draw(context, program_state)
-        this.shapes.cube.draw(context, program_state, this.frontWall, this.materials.sky)
+        if(collision){
+            this.shapes.cube.draw(context, program_state, this.frontWall, this.materials.explode)
+        }
+        else{
+            this.shapes.cube.draw(context, program_state, this.frontWall, this.materials.sky)
+        }
         this.shapes.cube.draw(context, program_state, this.backWall, this.materials.sky)
         this.shapes.cube.draw(context, program_state, this.leftWall, this.materials.sky)
         this.shapes.cube.draw(context, program_state, this.rightWall, this.materials.sky)
@@ -191,6 +225,10 @@ export class Computer_Graphics_Project extends Scene{
         this.world = new World();
         this.player = new Player();
         this.initial_camera_location = Mat4.look_at(vec3(0, 20, 40), vec3(0, 20, 0), vec3(0, 1, 0));
+        this.bullets = [];
+        for(var i=0; i<6; i++){
+            this.bullets.push(new Bullet());
+        }
     }
     make_control_panel() {
 
@@ -210,7 +248,17 @@ export class Computer_Graphics_Project extends Scene{
         const light_position = vec4(50, 50, 50, 1);
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000000)];
 
-        this.world.draw(context, program_state);
+        const myT = program_state.animation_time / 1000, dmyT = program_state.animation_delta_time / 1000;
+        var dist1 = (myT*10)%58;
+        var pos1= Mat4.identity().times(Mat4.translation(0, 0, -dist1));
+        this.bullets[0].draw(context, program_state, pos1);
+
+        var collision = false;
+        if(dist1>=50){
+            collision = true;}
+        this.world.draw(context, program_state, collision);
         this.player.draw(context, program_state);
+
+        
     }
 }
