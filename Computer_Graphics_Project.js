@@ -3,8 +3,108 @@ import {defs, tiny} from '/examples/common.js';
 const {
     Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture
 } = tiny;
-const {Triangle, Square, Cube, Subdivision_Sphere, Textured_Phong} = defs;
+const {Triangle, Square, Cube, Subdivision_Sphere, Textured_Phong, Surface_Of_Revolution} = defs;
 
+
+export class Shape_From_File extends Shape {
+    constructor(filename) {
+        super("position", "normal", "texture_coord");
+        // Begin downloading the mesh. Once that completes, return
+        // control to our parse_into_mesh function.
+        this.load_file(filename);
+    }
+
+    load_file(filename) {                             // Request the external file and wait for it to load.
+        // Failure mode:  Loads an empty shape.
+        return fetch(filename)
+            .then(response => {
+                if (response.ok) return Promise.resolve(response.text())
+                else return Promise.reject(response.status)
+            })
+            .then(obj_file_contents => this.parse_into_mesh(obj_file_contents))
+            .catch(error => {
+                this.copy_onto_graphics_card(this.gl);
+            })
+    }
+
+    parse_into_mesh(data) {                           // Adapted from the "webgl-obj-loader.js" library found online:
+        var verts = [], vertNormals = [], textures = [], unpacked = {};
+
+        unpacked.verts = [];
+        unpacked.norms = [];
+        unpacked.textures = [];
+        unpacked.hashindices = {};
+        unpacked.indices = [];
+        unpacked.index = 0;
+
+        var lines = data.split('\n');
+
+        var VERTEX_RE = /^v\s/;
+        var NORMAL_RE = /^vn\s/;
+        var TEXTURE_RE = /^vt\s/;
+        var FACE_RE = /^f\s/;
+        var WHITESPACE_RE = /\s+/;
+
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            var elements = line.split(WHITESPACE_RE);
+            elements.shift();
+
+            if (VERTEX_RE.test(line)) verts.push.apply(verts, elements);
+            else if (NORMAL_RE.test(line)) vertNormals.push.apply(vertNormals, elements);
+            else if (TEXTURE_RE.test(line)) textures.push.apply(textures, elements);
+            else if (FACE_RE.test(line)) {
+                var quad = false;
+                for (var j = 0, eleLen = elements.length; j < eleLen; j++) {
+                    if (j === 3 && !quad) {
+                        j = 2;
+                        quad = true;
+                    }
+                    if (elements[j] in unpacked.hashindices)
+                        unpacked.indices.push(unpacked.hashindices[elements[j]]);
+                    else {
+                        var vertex = elements[j].split('/');
+
+                        unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 0]);
+                        unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 1]);
+                        unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 2]);
+
+                        if (textures.length) {
+                            unpacked.textures.push(+textures[((vertex[1] - 1) || vertex[0]) * 2 + 0]);
+                            unpacked.textures.push(+textures[((vertex[1] - 1) || vertex[0]) * 2 + 1]);
+                        }
+
+                        unpacked.norms.push(+vertNormals[((vertex[2] - 1) || vertex[0]) * 3 + 0]);
+                        unpacked.norms.push(+vertNormals[((vertex[2] - 1) || vertex[0]) * 3 + 1]);
+                        unpacked.norms.push(+vertNormals[((vertex[2] - 1) || vertex[0]) * 3 + 2]);
+
+                        unpacked.hashindices[elements[j]] = unpacked.index;
+                        unpacked.indices.push(unpacked.index);
+                        unpacked.index += 1;
+                    }
+                    if (j === 3 && quad) unpacked.indices.push(unpacked.hashindices[elements[0]]);
+                }
+            }
+        }
+        {
+            const {verts, norms, textures} = unpacked;
+            for (var j = 0; j < verts.length / 3; j++) {
+                this.arrays.position.push(vec3(verts[3 * j], verts[3 * j + 1], verts[3 * j + 2]));
+                this.arrays.normal.push(vec3(norms[3 * j], norms[3 * j + 1], norms[3 * j + 2]));
+                this.arrays.texture_coord.push(vec(textures[2 * j], textures[2 * j + 1]));
+            }
+            this.indices = unpacked.indices;
+        }
+        this.normalize_positions(false);
+        this.ready = true;
+    }
+
+    draw(context, program_state, model_transform, material) {               // draw(): Same as always for shapes, but cancel all
+        // attempts to draw the shape before it loads:
+        if (this.ready)
+            super.draw(context, program_state, model_transform, material);
+    }
+}
 
 class Human extends Shape {
     constructor() {
@@ -61,11 +161,10 @@ class Weapon_A extends Shape {
                 Cube.insert_transformed_copy_into( this, [], cube_transform );
               }
            }
-        }  
+        }
     }
 
 }
-
 
 class Player {
     constructor(){
@@ -81,88 +180,217 @@ class Player {
             }),
         }
     }
-   
+
     draw(context, program_state) {
         this.human_0 = Mat4.identity()
-            .times(Mat4.scale(5, 5, 5));
+            .times(Mat4.scale(1,1 , 1))
+            .times(Mat4.translation(0, 20, 0));
         this.shapes.human.draw(context, program_state, this.human_0, this.materials.rgb);
 
     }
 
 }
 
+let SIZE = 256
 
-class Wall extends Shape {
+class Steps extends Shape {
     constructor() {
         super("position", "normal", "texture_coord");
-        this.drawLeg(Mat4.identity()); //right
-        this.drawLeg(Mat4.rotation(Math.PI,0,0,1)); //left
-        this.drawLeg(Mat4.rotation(Math.PI,1,1,0)); //up
-        //this.drawLeg(Mat4.rotation(Math.PI,1,0,1)); //front
-        //this.drawLeg(Mat4.rotation(Math.PI, -1,0,1)); //back
-        this.drawLeg(Mat4.rotation(Math.PI, 1, -1,0)); //down
-
+        this.drawSteps(Mat4.identity()); //right
     }
 
-    drawLeg(transform) {
-        Cube.insert_transformed_copy_into(this, [], transform.times(Mat4.translation(.3,0,0)).times(Mat4.scale(.3,.1,.1)));
-        Cube.insert_transformed_copy_into(this, [], transform.times(Mat4.translation(.6,.2,0)).times(Mat4.scale(.1,.3,.1)));
-        Cube.insert_transformed_copy_into(this, [], transform.times(Mat4.translation(.6,-.2,0)).times(Mat4.scale(.1,-.3,.1)));
-        //Cube.insert_transformed_copy_into(this, [], transform.times(Mat4.translation(.6,0,.2)).times(Mat4.scale(.1,.1,.3)));
-        //Cube.insert_transformed_copy_into(this, [], transform.times(Mat4.translation(.6,0,-.2)).times(Mat4.scale(.1,.1,-.3)));
+    drawSteps(transform) {
+        Cube.insert_transformed_copy_into(this, [], transform.times(Mat4.scale(5,1,5)));
+        Cube.insert_transformed_copy_into(this, [], transform.times(Mat4.translation(0,1/1.25,-2)).times(Mat4.scale(5,1,5)));
+        Cube.insert_transformed_copy_into(this, [], transform.times(Mat4.translation(0,2/1.25, -4)).times(Mat4.scale(5,1,5)));
+        Cube.insert_transformed_copy_into(this, [], transform.times(Mat4.translation(0,3/1.25, -6)).times(Mat4.scale(5,1,5)));
+
     }
 }
 
-class Floor {
+class Half_Torus extends Shape {
+    // Build a donut shape.  An example of a surface of revolution.
+    constructor(rows, columns, texture_range=[[0, 1], [0, 1]]) {
+        super("position", "normal", "texture_coord");
+        const circle_points = Array(rows).fill(vec3(1 / 3, 0, 0))
+            .map((p, i, a) => Mat4.translation(-1/3, 0, 0)
+                .times(Mat4.rotation(i / (a.length - 1) * 2 * Math.PI, 0, -1, 0))
+                .times(Mat4.scale(1, 1, 3))
+                .times(p.to4(1)).to3());
+        Surface_Of_Revolution.insert_transformed_copy_into(this, [rows, columns, circle_points, texture_range, 3.2]);
+    }
+}
+
+
+class Exterior extends Shape {
     constructor() {
-        this.size = 256
-        this.max_height = 10;
-        this.ground = new Material(new defs.Fake_Bump_Map(1), {
-            ambient: .5,
-            diffusivity: .8,
-            texture: new Texture("assets/rock.jpg")
-        })
-        const row_operation = (s, p) => vec3(-1, 2 * s - 1, Math.random() / 2);
-        const column_operation = (t, p, s) => vec3(2 * t - 1, 2 * s - 1, Math.random() / 2);
-        this.shapes = {sheet: new defs.Grid_Patch(1, 1, row_operation, column_operation)};
+        let stageSize = 25
+        let offSet = 10
+        super("position", "normal", "texture_coord");
+        Half_Torus.insert_transformed_copy_into(this, [10, 10, [[0, 2], [0, 2]]], Mat4.translation(0, 6, stageSize + offSet).times(Mat4.rotation(Math.PI,0,0,Math.PI).times(Mat4.scale(12,4,5)))) // Top
+        //Cube.insert_transformed_copy_into(this, [], Mat4.translation(0,6, stageSize + offSet).times(Mat4.scale(5,1,1))) // Blocky Roof
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(6,0, stageSize + offSet).times(Mat4.scale(1,6,1))) //Right Pillar
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(-6,0, stageSize + offSet).times(Mat4.scale(1,6,1))) //Left Pillar
+
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(-(stageSize + offSet)/2 - 3,0, stageSize + offSet).times(Mat4.scale((stageSize + offSet)/2 - 3,5,.5))) //Left-Front Wall
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation((stageSize + offSet)/2 + 3,0, stageSize + offSet).times(Mat4.scale((stageSize + offSet)/2 - 3,5,.5))) //Left-Front Wall
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(0,0, -(stageSize + offSet)).times(Mat4.scale((stageSize + offSet),5,.5))) //Back Wall
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(-(stageSize + offSet),0, 0).times(Mat4.scale(.5,5,(stageSize + offSet)))) //Left Wall
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation((stageSize + offSet),0, 0).times(Mat4.scale(.5,5,(stageSize + offSet)))) //Right Wall
+
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation((stageSize + offSet),0, (stageSize + offSet)).times(Mat4.scale(.5,10, .5))) //Front-Right Corner
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(-(stageSize + offSet),0, (stageSize + offSet)).times(Mat4.scale(.5,10, .5))) //Front-Left Corner
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation((stageSize + offSet),0, -(stageSize + offSet)).times(Mat4.scale(.5,10, .5))) //Back-Right Corner
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(-(stageSize + offSet),0, -(stageSize + offSet)).times(Mat4.scale(.5,10, .5))) //Back-Left Corner
+
+
+
+    }
+}
+
+class Arena {
+    constructor() {
+        this.stageSize = 25
+        this.pathLength = 40
+
+        this.shapes = {
+            exterior: new Exterior(),
+            stage: new Cube(),
+            path: new Cube(),
+            wall: new Cube(),
+            steps: new Steps(),
+        }
+        this.shapes.stage.arrays.texture_coord.forEach(p => p.scale_by(10))
+        this.shapes.path.arrays.texture_coord.forEach(p => p.scale_by(4))
+        this.materials = {
+            concrete: new Material(new defs.Fake_Bump_Map(1), {
+                color: hex_color("#000000"),
+                ambient: .75, diffusivity: .4, specularity: 0.1,
+                texture: new Texture("assets/concrete.png")
+            }),
+        }
+
     }
 
     draw(context, program_state) {
+        let transform = Mat4.identity()
+        transform = transform.times(Mat4.translation(0, 10, 0))
 
+        this.stage = transform
+            .times(Mat4.scale(this.stageSize, 4, this.stageSize))
+        this.shapes.stage.draw(context, program_state, this.stage, this.materials.concrete)
+        this.steps = transform
+            .times(Mat4.translation(0, 0, this.stageSize + 4))
+        this.shapes.steps.draw(context, program_state, this.steps, this.materials.concrete)
+        this.exterior = transform
+        this.shapes.exterior.draw(context, program_state, this.exterior, this.materials.concrete)
+
+        this.path = this.steps
+            .times(Mat4.translation(0,0,this.pathLength + 5))
+            .times(Mat4.scale(5,1,this.pathLength))
+        this.shapes.path.draw(context, program_state, this.path, this.materials.concrete)
+
+    }
+
+
+}
+
+class Floor {
+    // Adapted from Grid_Patch
+    constructor() {
+        this.height_map = new Image();
+        this.height_map.src = "/assets/island_heightmap.png";
+
+        this.height_map.onload = () => {
+            let canvas = document.createElement("canvas");
+            canvas.width = this.height_map.width;
+            canvas.height = this.height_map.height;
+            let context = canvas.getContext('2d');
+            context.drawImage(this.height_map, 0, 0);
+            this.data = context.getImageData(0, 0, this.height_map.width, this.height_map.height);
+
+            let rows = this.height_map.width;
+            let columns = this.height_map.height;
+            this.heights = new Array(rows);
+
+            for (let r = 0; r < rows; r++) {
+                this.heights[r] = new Array(columns);
+            }
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < columns; c++) {
+                    let height = this.getHeight(this.data, r, c);
+                    this.heights[r][c] = height;
+                }
+            }
+
+            const row_operation = (s, p) => {
+                return vec3(-1, 1, 2 * s - 1);
+            }
+            const column_operation = (t, p, s) => {
+                let height = this.heights[Math.floor(t * columns) - 1][Math.floor(s * rows) - 1]
+                return vec3(2 * t - 1, height, 2 * s - 1);
+            }
+            this.shapes = {sheet: new defs.Grid_Patch(rows - 1, columns - 1, row_operation, column_operation, [[0, rows], [0, columns]])}
+        }
+
+        this.ground = new Material(new defs.Fake_Bump_Map(1), {
+            ambient: .5,
+            diffusivity: .2,
+            texture: new Texture("assets/rock.jpg")
+        })
+
+    }
+
+    getHeight(data, x, y) {
+        let position = (x + data.width * y) * 4
+        let scale = 150
+        let r = data.data[position]
+        let g = data.data[position + 1]
+        let b = data.data[position + 2]
+        let height = r/256 * g/256 * b/256;
+        return height * scale;
+    }
+
+    draw(context, program_state) {
+        if(!this.shapes) return;
         this.floor = Mat4.identity()
-            .times(Mat4.scale(this.size, this.size, this.size))
-            .times(Mat4.rotation(Math.PI / 2, 1,0,0))
+            .times(Mat4.scale(SIZE, 1, SIZE))
         ;
         this.shapes.sheet.draw(context, program_state, this.floor, this.ground);
     }
 }
-class Bullet{
-    constructor(){
+
+class Water {
+    constructor() {
         this.shapes = {
-            ball: new  defs.Subdivision_Sphere(4)
+            cube: new Cube(),
         }
-        this.materials = {
-            sun: new Material(new defs.Phong_Shader(),
-                {ambient: 1.0, color: color(1,0,0,1)})
-        }
-        this.m1 = Mat4.identity().times(Mat4.translation(0, 25, 0));
-        this.m2 = this.m1.times(Mat4.translation(0, 0, -10));
-        this.mBig = (this.m2).times(Mat4.scale(5, 5, 5));
+
+        this.waterMaterial = new Material(new Water_Shader(1), {
+            ambient: .4,
+            diffusivity: 1,
+            specularity: 0.8,
+            texture: new Texture("assets/water.jpeg"),
+            color: color(0, 0, 1, 1)
+        })
+
+        this.water = Mat4.identity()
+            .times(Mat4.scale(SIZE, 5, SIZE))
     }
 
-    
-    draw(context, program_state, offset) {
-        var newM = this.mBig.times(offset);
-        this.shapes.ball.draw(context, program_state, newM, this.materials.sun);
+    draw(context, program_state) {
+        this.shapes.cube.draw(context, program_state, this.water, this.waterMaterial)
     }
 }
 
 class World {
     constructor(){
         this.shapes = {
-            floor: new Floor(),
             cube: new Cube(),
         }
+        this.water = new Water()
+        this.floor = new Floor()
 
         this.materials = {
             explode: new Material(new defs.Fake_Bump_Map(1), {
@@ -173,16 +401,9 @@ class World {
                 ambient: 1,
                 texture: new Texture("assets/clouds.png")
             }),
-            ground: new Material(new defs.Fake_Bump_Map(1), {
-                ambient: .5,
-                diffusivity: .3,
-                texture: new Texture("assets/rock.jpg")
-            }),
         }
-        this.size = 256;
+        this.size = SIZE;
 
-        this.floor = Mat4.identity()
-            .times(Mat4.scale(this.size, 1, this.size));
         this.frontWall = Mat4.identity()
             .times(Mat4.translation(0,this.size/2,-this.size))
             .times(Mat4.scale(this.size, this.size, 1))
@@ -204,7 +425,9 @@ class World {
 
 
     draw(context, program_state, collision) {
-        this.shapes.floor.draw(context, program_state)
+        this.floor.draw(context, program_state)
+        this.water.draw(context, program_state)
+
         if(collision){
             this.shapes.cube.draw(context, program_state, this.frontWall, this.materials.explode)
         }
@@ -215,6 +438,33 @@ class World {
         this.shapes.cube.draw(context, program_state, this.leftWall, this.materials.sky)
         this.shapes.cube.draw(context, program_state, this.rightWall, this.materials.sky)
         this.shapes.cube.draw(context, program_state, this.top, this.materials.sky)
+
+    }
+}
+
+class Bullet{
+    constructor(){
+        this.shapes = {
+            ball: new  defs.Subdivision_Sphere(4),
+            sword: new Shape_From_File("assets/Single-handed_longsword.obj")
+        }
+        this.materials = {
+            sun: new Material(new defs.Textured_Phong(1), {
+                ambient: 1.0,
+                color: hex_color("#000000"),
+                texture: new Texture("assets/stars.png")
+            }),
+        }
+        this.m1 = Mat4.identity().times(Mat4.translation(0, 25, 0));
+        this.m2 = this.m1.times(Mat4.translation(0, 0, -10));
+        this.mBig = (this.m2).times(Mat4.scale(5, 5, 5));
+    }
+
+
+    draw(context, program_state, offset) {
+        var newM = this.mBig.times(offset);
+
+        this.shapes.sword.draw(context, program_state, newM, this.materials.sun);
     }
 }
 
@@ -222,7 +472,11 @@ export class Computer_Graphics_Project extends Scene{
     constructor(){
         super();
 
+        this.shapes = {
+            platform: new defs.Capped_Cylinder(1, 10, [[0, 2], [0, 1]]),
+        }
         this.world = new World();
+        this.arena = new Arena();
         this.player = new Player();
         this.initial_camera_location = Mat4.look_at(vec3(0, 20, 40), vec3(0, 20, 0), vec3(0, 1, 0));
         this.bullets = [];
@@ -245,8 +499,8 @@ export class Computer_Graphics_Project extends Scene{
             Math.PI / 4, context.width / context.height, .1, 1000);
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
 
-        const light_position = vec4(50, 50, 50, 1);
-        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000000)];
+        const light_position = vec4(75, 75, 75, 1);
+        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
 
         const myT = program_state.animation_time / 1000, dmyT = program_state.animation_delta_time / 1000;
         var dist1 = (myT*10)%58;
@@ -258,7 +512,29 @@ export class Computer_Graphics_Project extends Scene{
             collision = true;}
         this.world.draw(context, program_state, collision);
         this.player.draw(context, program_state);
+        this.arena.draw(context, program_state);
 
-        
+    }
+}
+
+class Water_Shader extends defs.Textured_Phong {
+    fragment_glsl_code() {
+        return this.shared_glsl_code() + `
+            varying vec2 f_tex_coord;
+            uniform sampler2D texture;
+
+            void main(){
+                // Sample the texture image in the correct place:
+                vec4 tex_color = texture2D( texture, f_tex_coord );
+                if( tex_color.w < .01 ) discard;
+                // Slightly disturb normals based on sampling the same image that was used for texturing:
+                vec3 bumped_N  = N + tex_color.rgb - .5*vec3(1,1,1);
+                // Compute an initial (ambient) color:
+                gl_FragColor = vec4( ( tex_color.xyz + shape_color.xyz ) * ambient, shape_color.w * tex_color.w );
+                // Compute the final color with contributions from lights:
+                gl_FragColor.xyz += phong_model_lights( normalize( bumped_N ), vertex_worldspace );
+                gl_FragColor.a = 0.5;
+              } `;
+
     }
 }
