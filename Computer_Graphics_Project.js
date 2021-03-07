@@ -3,8 +3,108 @@ import {defs, tiny} from '/examples/common.js';
 const {
     Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture
 } = tiny;
-const {Triangle, Square, Cube, Subdivision_Sphere, Textured_Phong} = defs;
+const {Triangle, Square, Cube, Subdivision_Sphere, Textured_Phong, Surface_Of_Revolution} = defs;
 
+
+export class Shape_From_File extends Shape {
+    constructor(filename) {
+        super("position", "normal", "texture_coord");
+        // Begin downloading the mesh. Once that completes, return
+        // control to our parse_into_mesh function.
+        this.load_file(filename);
+    }
+
+    load_file(filename) {                             // Request the external file and wait for it to load.
+        // Failure mode:  Loads an empty shape.
+        return fetch(filename)
+            .then(response => {
+                if (response.ok) return Promise.resolve(response.text())
+                else return Promise.reject(response.status)
+            })
+            .then(obj_file_contents => this.parse_into_mesh(obj_file_contents))
+            .catch(error => {
+                this.copy_onto_graphics_card(this.gl);
+            })
+    }
+
+    parse_into_mesh(data) {                           // Adapted from the "webgl-obj-loader.js" library found online:
+        var verts = [], vertNormals = [], textures = [], unpacked = {};
+
+        unpacked.verts = [];
+        unpacked.norms = [];
+        unpacked.textures = [];
+        unpacked.hashindices = {};
+        unpacked.indices = [];
+        unpacked.index = 0;
+
+        var lines = data.split('\n');
+
+        var VERTEX_RE = /^v\s/;
+        var NORMAL_RE = /^vn\s/;
+        var TEXTURE_RE = /^vt\s/;
+        var FACE_RE = /^f\s/;
+        var WHITESPACE_RE = /\s+/;
+
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            var elements = line.split(WHITESPACE_RE);
+            elements.shift();
+
+            if (VERTEX_RE.test(line)) verts.push.apply(verts, elements);
+            else if (NORMAL_RE.test(line)) vertNormals.push.apply(vertNormals, elements);
+            else if (TEXTURE_RE.test(line)) textures.push.apply(textures, elements);
+            else if (FACE_RE.test(line)) {
+                var quad = false;
+                for (var j = 0, eleLen = elements.length; j < eleLen; j++) {
+                    if (j === 3 && !quad) {
+                        j = 2;
+                        quad = true;
+                    }
+                    if (elements[j] in unpacked.hashindices)
+                        unpacked.indices.push(unpacked.hashindices[elements[j]]);
+                    else {
+                        var vertex = elements[j].split('/');
+
+                        unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 0]);
+                        unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 1]);
+                        unpacked.verts.push(+verts[(vertex[0] - 1) * 3 + 2]);
+
+                        if (textures.length) {
+                            unpacked.textures.push(+textures[((vertex[1] - 1) || vertex[0]) * 2 + 0]);
+                            unpacked.textures.push(+textures[((vertex[1] - 1) || vertex[0]) * 2 + 1]);
+                        }
+
+                        unpacked.norms.push(+vertNormals[((vertex[2] - 1) || vertex[0]) * 3 + 0]);
+                        unpacked.norms.push(+vertNormals[((vertex[2] - 1) || vertex[0]) * 3 + 1]);
+                        unpacked.norms.push(+vertNormals[((vertex[2] - 1) || vertex[0]) * 3 + 2]);
+
+                        unpacked.hashindices[elements[j]] = unpacked.index;
+                        unpacked.indices.push(unpacked.index);
+                        unpacked.index += 1;
+                    }
+                    if (j === 3 && quad) unpacked.indices.push(unpacked.hashindices[elements[0]]);
+                }
+            }
+        }
+        {
+            const {verts, norms, textures} = unpacked;
+            for (var j = 0; j < verts.length / 3; j++) {
+                this.arrays.position.push(vec3(verts[3 * j], verts[3 * j + 1], verts[3 * j + 2]));
+                this.arrays.normal.push(vec3(norms[3 * j], norms[3 * j + 1], norms[3 * j + 2]));
+                this.arrays.texture_coord.push(vec(textures[2 * j], textures[2 * j + 1]));
+            }
+            this.indices = unpacked.indices;
+        }
+        this.normalize_positions(false);
+        this.ready = true;
+    }
+
+    draw(context, program_state, model_transform, material) {               // draw(): Same as always for shapes, but cancel all
+        // attempts to draw the shape before it loads:
+        if (this.ready)
+            super.draw(context, program_state, model_transform, material);
+    }
+}
 
 class Human extends Shape {
     constructor() {
@@ -66,7 +166,6 @@ class Weapon_A extends Shape {
 
 }
 
-
 class Player {
     constructor(){
         this.shapes = {
@@ -84,7 +183,8 @@ class Player {
 
     draw(context, program_state) {
         this.human_0 = Mat4.identity()
-            .times(Mat4.scale(5, 5, 5));
+            .times(Mat4.scale(1,1 , 1))
+            .times(Mat4.translation(0, 20, 0));
         this.shapes.human.draw(context, program_state, this.human_0, this.materials.rgb);
 
     }
@@ -147,7 +247,6 @@ class Exterior extends Shape {
 
     }
 }
-
 
 class Arena {
     constructor() {
@@ -261,26 +360,6 @@ class Floor {
         this.shapes.sheet.draw(context, program_state, this.floor, this.ground);
     }
 }
-class Bullet{
-    constructor(){
-        this.shapes = {
-            ball: new  defs.Subdivision_Sphere(4)
-        }
-        this.materials = {
-            sun: new Material(new defs.Phong_Shader(),
-                {ambient: 1.0, color: color(1,0,0,1)})
-        }
-        this.m1 = Mat4.identity().times(Mat4.translation(0, 25, 0));
-        this.m2 = this.m1.times(Mat4.translation(0, 0, -10));
-        this.mBig = (this.m2).times(Mat4.scale(5, 5, 5));
-    }
-
-
-    draw(context, program_state, offset) {
-        var newM = this.mBig.times(offset);
-        this.shapes.ball.draw(context, program_state, newM, this.materials.sun);
-    }
-}
 
 class Water {
     constructor() {
@@ -346,7 +425,7 @@ class World {
 
 
     draw(context, program_state, collision) {
-        this.shapes.floor.draw(context, program_state)
+        this.floor.draw(context, program_state)
         this.water.draw(context, program_state)
 
         if(collision){
@@ -360,6 +439,32 @@ class World {
         this.shapes.cube.draw(context, program_state, this.rightWall, this.materials.sky)
         this.shapes.cube.draw(context, program_state, this.top, this.materials.sky)
 
+    }
+}
+
+class Bullet{
+    constructor(){
+        this.shapes = {
+            ball: new  defs.Subdivision_Sphere(4),
+            sword: new Shape_From_File("assets/Single-handed_longsword.obj")
+        }
+        this.materials = {
+            sun: new Material(new defs.Textured_Phong(1), {
+                ambient: 1.0,
+                color: hex_color("#000000"),
+                texture: new Texture("assets/stars.png")
+            }),
+        }
+        this.m1 = Mat4.identity().times(Mat4.translation(0, 25, 0));
+        this.m2 = this.m1.times(Mat4.translation(0, 0, -10));
+        this.mBig = (this.m2).times(Mat4.scale(5, 5, 5));
+    }
+
+
+    draw(context, program_state, offset) {
+        var newM = this.mBig.times(offset);
+
+        this.shapes.sword.draw(context, program_state, newM, this.materials.sun);
     }
 }
 
