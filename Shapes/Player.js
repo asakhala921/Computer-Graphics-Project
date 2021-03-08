@@ -41,7 +41,7 @@ export default class Player {
         this.upwards_speed += this.gravity * dt
         this.position = this.position.plus(Vector.of(x, this.upwards_speed, z))
         if(height_map) {
-           terrain_height = (height_map[Math.floor((256 + this.position[0]) / 2)][Math.floor((256 + this.position[2]) / 2)])
+           terrain_height = (height_map[Math.floor((256 + this.position[0]) / 512 * 100)][Math.floor((256 + this.position[2]) / 512 * 100)])
         }
 
         if (this.position[1] < terrain_height + 5) {
