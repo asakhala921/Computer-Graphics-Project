@@ -5,7 +5,7 @@ const {
 } = tiny;
 const {Cube} = defs;
 
-import Floor from '../Shapes/Floor.js';
+import Ground from '../Shapes/Ground.js';
 import Water from '../Shapes/Water.js';
 
 let SIZE = 256
@@ -16,7 +16,7 @@ export default class World {
             cube: new Cube(),
         }
         this.water = new Water()
-        this.floor = new Floor()
+        this.ground = new Ground()
 
         this.materials = {
             explode: new Material(new defs.Fake_Bump_Map(1), {
@@ -51,7 +51,7 @@ export default class World {
 
 
     draw(context, program_state, collision) {
-        this.floor.draw(context, program_state)
+        this.ground.draw(context, program_state)
         this.water.draw(context, program_state)
 
         if(collision){

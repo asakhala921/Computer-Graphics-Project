@@ -56,10 +56,16 @@ export class Computer_Graphics_Project extends Scene{
     }
 
     calculate_walkable_area() {
-        if(!this.world.floor.heights) return;
-        let floor = this.world.floor.heights;
+        console.log(this.world.ground)
+
+        if(!this.world.ground.heights) return;
+        let ground = this.world.ground.heights;
     }
     make_control_panel() {
+        this.key_triggered_button("Player Forward", ["i"], () => this.player.current_speed = -this.player.run_speed, undefined, () => this.player.current_speed = 0);
+        this.key_triggered_button("Player Backwards", ["k"], () => this.player.current_speed = this.player.run_speed, undefined, () => this.player.current_speed = 0);
+        this.key_triggered_button("Player Left", ["j"], () => this.player.current_turn_speed = -this.player.turn_speed, undefined, () => this.player.current_turn_speed = 0);
+        this.key_triggered_button("Player Right", ["l"], () => this.player.current_turn_speed = this.player.turn_speed, undefined, () => this.player.current_turn_speed = 0);
 
     }
 
@@ -81,11 +87,12 @@ export class Computer_Graphics_Project extends Scene{
         const myT = program_state.animation_time / 1000, dmyT = program_state.animation_delta_time / 1000;
         var dist1 = (myT*10)%58;
         var pos1= Mat4.identity().times(Mat4.translation(0, 0, -dist1));
-        this.bullets[0].draw(context, program_state, pos1);
+        //this.bullets[0].draw(context, program_state, pos1);
 
         var collision = false;
-        if(dist1>=50){
-            collision = true;}
+        //if(dist1>=50){
+            //collision = true;}
+        this.player.setMovement(program_state, this.calculate_walkable_area())
         this.world.draw(context, program_state, collision);
         this.player.draw(context, program_state);
         this.arena.draw(context, program_state);

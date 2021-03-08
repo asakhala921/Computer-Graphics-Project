@@ -7,7 +7,7 @@ const {Triangle, Square, Cube, Subdivision_Sphere, Textured_Phong, Surface_Of_Re
 
 let SIZE = 256
 
-export default class Floor {
+export default class Ground {
     // Adapted from Grid_Patch
     constructor() {
         this.height_map = new Image();
