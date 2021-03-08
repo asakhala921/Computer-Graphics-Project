@@ -56,10 +56,9 @@ export class Computer_Graphics_Project extends Scene{
     }
 
     calculate_walkable_area() {
-        console.log(this.world.ground)
-
         if(!this.world.ground.heights) return;
         let ground = this.world.ground.heights;
+        return ground
     }
     make_control_panel() {
         this.key_triggered_button("Player Forward", ["i"], () => this.player.current_speed = -this.player.run_speed, undefined, () => this.player.current_speed = 0);
