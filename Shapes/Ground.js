@@ -35,7 +35,6 @@ export default class Ground {
                     this.heights[r][c] = height;
                 }
             }
-
             const row_operation = (s, p) => {
                 return vec3(-1, 1, 2 * s - 1);
             }

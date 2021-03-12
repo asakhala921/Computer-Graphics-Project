@@ -10,6 +10,9 @@ import Arena from '/Shapes/Arena.js';
 import World from '/Shapes/World.js';
 import Player from '/Shapes/Player.js';
 
+const MAP_SIZE = 512;
+const HEIGHT_MAP_SIZE = 100;
+
 class Bullet{
     constructor(){
         this.shapes = {
@@ -55,10 +58,22 @@ export class Computer_Graphics_Project extends Scene{
         }
     }
 
-    calculate_walkable_area() {
+    get_current_ground_height(row, column) {
+        return this.world.ground.heights[Math.floor((MAP_SIZE/2 + row) / MAP_SIZE * HEIGHT_MAP_SIZE)][Math.floor((MAP_SIZE/2 + column) / MAP_SIZE * HEIGHT_MAP_SIZE)]
+    }
+
+
+    get_ground_heights(program_state) {
         if(!this.world.ground.heights) return;
-        let ground = this.world.ground.heights;
-        return ground
+        let floor_height = []
+        for (let row = -MAP_SIZE/2; row < MAP_SIZE/2; row += 1) {
+            let rowArray = []
+            for (let column = -MAP_SIZE/2; column < MAP_SIZE/2; column += 1) {
+                rowArray.push(this.get_current_ground_height(row, column))
+            }
+            floor_height.push(rowArray)
+        }
+        program_state.floor_height = floor_height;
     }
     make_control_panel() {
         this.key_triggered_button("Player Forward", ["i"], () => this.player.current_speed = -this.player.run_speed, undefined, () => this.player.current_speed = 0);
@@ -69,13 +84,13 @@ export class Computer_Graphics_Project extends Scene{
     }
 
     display(context, program_state) {
-        this.calculate_walkable_area()
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
             // Define the global camera and projection matrices, which are stored in program_state.
             program_state.set_camera(this.initial_camera_location);
         }
-
+        if(!program_state.floor_height)
+            this.get_ground_heights(program_state)
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, .1, 1000);
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
@@ -91,7 +106,7 @@ export class Computer_Graphics_Project extends Scene{
         var collision = false;
         //if(dist1>=50){
             //collision = true;}
-        this.player.setMovement(program_state, this.calculate_walkable_area())
+        this.player.setMovement(program_state)
         this.world.draw(context, program_state, collision);
         this.player.draw(context, program_state);
         this.arena.draw(context, program_state);
