@@ -46,6 +46,7 @@ export class Computer_Graphics_Project extends Scene{
         this.shapes = {
             platform: new defs.Capped_Cylinder(1, 10, [[0, 2], [0, 1]]),
         }
+        this.view = "third";
         this.world = new World();
         this.arena = new Arena();
         this.player = new Player();
@@ -62,7 +63,6 @@ export class Computer_Graphics_Project extends Scene{
         return this.world.ground.heights[Math.floor((MAP_SIZE/2 + row) / MAP_SIZE * HEIGHT_MAP_SIZE)][Math.floor((MAP_SIZE/2 + column) / MAP_SIZE * HEIGHT_MAP_SIZE)]
     }
 
-
     get_ground_heights(program_state) {
         if(!this.world.ground.heights) return;
         let floor_height = []
@@ -75,12 +75,50 @@ export class Computer_Graphics_Project extends Scene{
         }
         program_state.floor_height = floor_height;
     }
+
+    third_person_view(player, program_state) {
+        const theta = player.rotation[1] * 180
+        const x_offset = 30 * Math.sin(2 * Math.PI / 360 * theta)
+        const y_offset = 30 * Math.sin(2 * Math.PI / 360 * 20)
+        const z_offset = 30 * Math.cos(2 * Math.PI / 360 * theta)
+
+        let camera_position = Vector.of(0,0,0)
+        camera_position[0] = player.position[0] + x_offset
+        camera_position[1] = player.position[1] + y_offset
+        camera_position[2] = player.position[2] + z_offset
+
+        program_state.set_camera(Mat4.look_at(
+            camera_position, player.position, Vector.of(0, 1, 0)
+        ))
+    }
+
+    first_person_view(player, program_state) {
+        const theta = -player.rotation[1] * 180
+        const x_offset = 30 * Math.sin(2 * Math.PI / 360 * theta)
+        const y_offset = 30 * Math.sin(2 * Math.PI / 360 * 20)
+        const z_offset = 30 * Math.cos(2 * Math.PI / 360 * theta)
+        let camera_position = Vector.of(0,0,0)
+        camera_position[0] = player.position[0] - 2
+        camera_position[1] = player.position[1] + 4
+        camera_position[2] = player.position[2] - 2
+        let look_at_position = Vector.of(0,0,0)
+        look_at_position[0] = x_offset
+        look_at_position[1] = y_offset
+        look_at_position[2] = z_offset
+
+        program_state.set_camera(Mat4.look_at(
+            camera_position, look_at_position,Vector.of(0, 1, 0)
+        ))
+    }
+
+
     make_control_panel() {
         this.key_triggered_button("Player Forward", ["i"], () => this.player.current_speed = -this.player.run_speed, undefined, () => this.player.current_speed = 0);
         this.key_triggered_button("Player Backwards", ["k"], () => this.player.current_speed = this.player.run_speed, undefined, () => this.player.current_speed = 0);
-        this.key_triggered_button("Player Left", ["j"], () => this.player.current_turn_speed = -this.player.turn_speed, undefined, () => this.player.current_turn_speed = 0);
-        this.key_triggered_button("Player Right", ["l"], () => this.player.current_turn_speed = this.player.turn_speed, undefined, () => this.player.current_turn_speed = 0);
-
+        this.key_triggered_button("Player Left", ["j"], () => this.player.current_turn_speed = this.player.turn_speed, undefined, () => this.player.current_turn_speed = 0);
+        this.key_triggered_button("Player Right", ["l"], () => this.player.current_turn_speed = -this.player.turn_speed, undefined, () => this.player.current_turn_speed = 0);
+        this.key_triggered_button("First-Person", ["4"], () => this.view = "first");
+        this.key_triggered_button("Third-Person", ["5"], () => this.view = "third");
     }
 
     display(context, program_state) {
@@ -89,6 +127,11 @@ export class Computer_Graphics_Project extends Scene{
             // Define the global camera and projection matrices, which are stored in program_state.
             program_state.set_camera(this.initial_camera_location);
         }
+        if (this.view == "third")
+            this.third_person_view(this.player, program_state)
+        if (this.view == "first")
+            this.first_person_view(this.player, program_state)
+
         if(!program_state.floor_height)
             this.get_ground_heights(program_state)
         program_state.projection_transform = Mat4.perspective(

@@ -1,7 +1,7 @@
 import {defs, tiny} from '/examples/common.js';
 
 const {
-    color, Mat4, Material, Texture, Vector
+    color, Mat4, Material, Texture, Vector, hex_color
 } = tiny;
 const {Textured_Phong} = defs;
 
@@ -21,6 +21,8 @@ export default class Player {
                 ambient: .4, diffusivity: 0.2, specularity: 0.3,
                 texture: new Texture("assets/rgb.jpg", "LINEAR_MIPMAP_LINEAR")
             }),
+            plastic: new Material(new defs.Phong_Shader(),
+                {ambient: .6, diffusivity: .8, color: hex_color("#ffffff")}),
         }
 
         this.position = position
@@ -36,7 +38,7 @@ export default class Player {
     setMovement(program_state) {
         if(!program_state.floor_height) return
         const dt = program_state.animation_delta_time / 1000;
-        this.rotation = this.rotation.plus(Vector.of(0, this.current_turn_speed * dt, 0))
+        this.rotation = this.rotation.plus(Vector.of(0, this.current_turn_speed/2 * dt, 0))
         const x = this.current_speed * dt * Math.sin(Math.PI * this.rotation[1]);
         const z = this.current_speed * dt * Math.cos(Math.PI * this.rotation[1]);
         this.upwards_speed += this.gravity * dt
@@ -57,7 +59,7 @@ export default class Player {
             .times(Mat4.scale(1,1 , 1))
             .times(Mat4.translation(this.position[0], this.position[1], this.position[2]))
             .times(Mat4.rotation(Math.PI * this.rotation[1], 0, 1, 0))
-        this.shapes.human.draw(context, program_state, this.human_0, this.materials.rgb);
+        this.shapes.human.draw(context, program_state, this.human_0, this.materials.plastic);
 
     }
 }
