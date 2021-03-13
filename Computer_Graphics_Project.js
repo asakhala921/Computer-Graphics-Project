@@ -150,6 +150,7 @@ export class Computer_Graphics_Project extends Scene{
         //if(dist1>=50){
             //collision = true;}
         this.player.setMovement(program_state)
+        program_state.player = this.player
         this.world.draw(context, program_state, collision);
         this.player.draw(context, program_state);
         this.arena.draw(context, program_state);
