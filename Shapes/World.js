@@ -50,19 +50,33 @@ export default class World {
 
 
 
-    draw(context, program_state, collision) {
+    draw(context, program_state, option) {
         this.ground.draw(context, program_state)
         this.water.draw(context, program_state)
-
-        if(collision){
-            this.shapes.cube.draw(context, program_state, this.frontWall, this.materials.explode)
+        //console.log("passed in option is "+option);
+        if(option == 1){
+            this.shapes.cube.draw(context, program_state, this.frontWall, this.materials.explode);
         }
         else{
-            this.shapes.cube.draw(context, program_state, this.frontWall, this.materials.sky)
+            this.shapes.cube.draw(context, program_state, this.frontWall, this.materials.sky);
         }
-        this.shapes.cube.draw(context, program_state, this.backWall, this.materials.sky)
-        this.shapes.cube.draw(context, program_state, this.leftWall, this.materials.sky)
-        this.shapes.cube.draw(context, program_state, this.rightWall, this.materials.sky)
+        if( option == 2){
+            this.shapes.cube.draw(context, program_state, this.backWall, this.materials.explode);
+        }else{
+            this.shapes.cube.draw(context, program_state, this.backWall, this.materials.sky);
+        }
+        if(option == 3){
+            this.shapes.cube.draw(context, program_state, this.leftWall, this.materials.explode);
+        }
+        else{
+            this.shapes.cube.draw(context, program_state, this.leftWall, this.materials.sky);
+        }
+        if(option == 4){
+            this.shapes.cube.draw(context, program_state, this.rightWall, this.materials.explode);
+        }else{
+            this.shapes.cube.draw(context, program_state, this.rightWall, this.materials.sky);
+        }
+        
         this.shapes.cube.draw(context, program_state, this.top, this.materials.sky)
 
     }
