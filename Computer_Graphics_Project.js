@@ -9,6 +9,7 @@ import Shape_From_File from '/Shapes/Shape_From_File.js';
 import Arena from '/Shapes/Arena.js';
 import World from '/Shapes/World.js';
 import Player from '/Shapes/Player.js';
+import Golem from '/Shapes/Golem_Dummy.js';
 
 const MAP_SIZE = 512;
 const HEIGHT_MAP_SIZE = 100;
@@ -63,6 +64,7 @@ export class Computer_Graphics_Project extends Scene{
         this.world = new World();
         this.arena = new Arena();
         this.player = new Player();
+        this.golem = new Golem();
         this.initial_camera_location = Mat4.look_at(vec3(0, 20, 40), vec3(0, 20, 0), vec3(0, 1, 0));
         this.bullets = [];
         this.position = Vector.of(0,0,0);
@@ -88,33 +90,41 @@ export class Computer_Graphics_Project extends Scene{
 
     third_person_view(player, program_state) {
         const theta = player.rotation[1] * 180
-        const x_offset = 30 * Math.sin(2 * Math.PI / 360 * theta)
+        const x_offset = 20 * Math.sin(2 * Math.PI / 360 * theta)
         const y_offset = 30 * Math.sin(2 * Math.PI / 360 * 20)
-        const z_offset = 30 * Math.cos(2 * Math.PI / 360 * theta)
+        const z_offset = 20 * Math.cos(2 * Math.PI / 360 * theta)
 
         let camera_position = Vector.of(0,0,0)
         camera_position[0] = player.position[0] + x_offset
         camera_position[1] = player.position[1] + y_offset
         camera_position[2] = player.position[2] + z_offset
 
+        const look_x_offset = 10 * Math.sin(2 * Math.PI / 360 * theta)
+        const look_y_offset = 1 * Math.sin(2 * Math.PI / 360 * 20)
+        const look_z_offset = 10 * Math.cos(2 * Math.PI / 360 * theta)
+        let look_at_position = Vector.of(0,0,0)
+        look_at_position[0] = player.position[0] - look_x_offset
+        look_at_position[1] = player.position[1] - look_y_offset
+        look_at_position[2] = player.position[2] - look_z_offset
+
         program_state.set_camera(Mat4.look_at(
-            camera_position, player.position, Vector.of(0, 1, 0)
+            camera_position, look_at_position, Vector.of(0, 1, 0)
         ))
     }
 
     first_person_view(player, program_state) {
         const theta = -player.rotation[1] * 180
         const x_offset = 30 * Math.sin(2 * Math.PI / 360 * theta)
-        const y_offset = 30 * Math.sin(2 * Math.PI / 360 * 20)
+        const y_offset = 10 * Math.sin(2 * Math.PI / 360 * 20)
         const z_offset = 30 * Math.cos(2 * Math.PI / 360 * theta)
         let camera_position = Vector.of(0,0,0)
-        camera_position[0] = player.position[0] - 2
-        camera_position[1] = player.position[1] + 4
-        camera_position[2] = player.position[2] - 2
+        camera_position[0] = player.position[0] + 5 * Math.sin(2 * Math.PI / 360 * theta)
+        camera_position[1] = player.position[1] + 4 * Math.sin(2 * Math.PI / 360 * 20)
+        camera_position[2] = player.position[2] - 3 * Math.cos(2 * Math.PI / 360 * theta)
         let look_at_position = Vector.of(0,0,0)
-        look_at_position[0] = x_offset
-        look_at_position[1] = y_offset
-        look_at_position[2] = z_offset
+        look_at_position[0] = player.position[0] + x_offset
+        look_at_position[1] = player.position[1] + y_offset
+        look_at_position[2] = player.position[2] - z_offset
 
         program_state.set_camera(Mat4.look_at(
             camera_position, look_at_position,Vector.of(0, 1, 0)
@@ -123,21 +133,22 @@ export class Computer_Graphics_Project extends Scene{
 
     setFire(){
         this.fire = !this.fire;
+        this.player.fire();
     }
 
     make_control_panel() {
-        this.key_triggered_button("Player Forward", ["i"], () => this.player.current_speed = -this.player.run_speed, undefined, () => this.player.current_speed = 0);
-        this.key_triggered_button("Player Backwards", ["k"], () => this.player.current_speed = this.player.run_speed, undefined, () => this.player.current_speed = 0);
-        this.key_triggered_button("Player Left", ["j"], () => this.player.current_turn_speed = this.player.turn_speed, undefined, () => this.player.current_turn_speed = 0);
-        this.key_triggered_button("Player Right", ["l"], () => this.player.current_turn_speed = -this.player.turn_speed, undefined, () => this.player.current_turn_speed = 0);
+        this.key_triggered_button("Player Forward", ["w"], () => this.player.current_speed = -this.player.run_speed, undefined, () => this.player.current_speed = 0);
+        this.key_triggered_button("Player Backwards", ["s"], () => this.player.current_speed = this.player.run_speed, undefined, () => this.player.current_speed = 0);
+        this.key_triggered_button("Player Left", ["a"], () => this.player.current_turn_speed = this.player.turn_speed, undefined, () => this.player.current_turn_speed = 0);
+        this.key_triggered_button("Player Right", ["d"], () => this.player.current_turn_speed = -this.player.turn_speed, undefined, () => this.player.current_turn_speed = 0);
+        this.key_triggered_button("Jump", [" "], () => this.player.jump())
         this.key_triggered_button("First-Person", ["4"], () => this.view = "first");
         this.key_triggered_button("Third-Person", ["5"], () => this.view = "third");
-        this.key_triggered_button("swords dance", ["s"], this.setFire);
+        this.key_triggered_button("swords dance", ["f"], this.setFire);
     }
 
     display(context, program_state) {
         if (!context.scratchpad.controls) {
-            this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
             // Define the global camera and projection matrices, which are stored in program_state.
             program_state.set_camera(this.initial_camera_location);
         }
@@ -166,6 +177,7 @@ export class Computer_Graphics_Project extends Scene{
         
         this.player.draw(context, program_state);
         this.arena.draw(context, program_state);
+        this.golem.draw(context, program_state);
         if(!this.player.position.equals(this.position)){
             //console.log(this.player.position);
             this.position = this.player.position;

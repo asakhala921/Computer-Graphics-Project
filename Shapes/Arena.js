@@ -11,7 +11,7 @@ const MAP_SIZE = 512;
 
 export default class Arena {
     constructor() {
-        this.stageSize = 26
+        this.stageSize = 50
         this.pathLength = 40
 
         this.shapes = {

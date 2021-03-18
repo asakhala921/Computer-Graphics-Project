@@ -5,7 +5,7 @@ const {
 } = tiny;
 const {Textured_Phong} = defs;
 
-//import Human from '/Shapes/Human.js'
+import Shape_From_File from '/Shapes/Shape_From_File.js';
 const MAP_SIZE = 512;
 const HEIGHT_MAP_SIZE = 100;
 
@@ -13,6 +13,14 @@ export default class Player {
     constructor(position = Vector.of(0, 15, 100)){
         this.shapes = {
             sphere: new  defs.Subdivision_Sphere(3),
+            torso: new Shape_From_File("../assets//baymax/baymax_belly.obj"),
+            left_leg: new Shape_From_File("../assets/baymax/baymax_leftleg.obj"),
+            right_leg: new Shape_From_File("../assets/baymax/baymax_rightleg.obj"),
+            head: new Shape_From_File("../assets/baymax/baymax_head.obj"),
+            right_arm: new Shape_From_File("../assets/baymax/baymax_rightarm.obj"),
+            left_arm: new Shape_From_File("../assets/baymax/baymax_leftarm.obj"),
+
+
         }
 
         this.materials = {
@@ -31,8 +39,11 @@ export default class Player {
         this.turn_speed = 1;
         this.current_speed = 0;
         this.current_turn_speed = 0;
-        this.gravity = -30;
-        this.upwards_speed = 0
+        this.gravity = -5;
+        this.upwards_speed = 0;
+        this.arm_lift_time = 0;
+        this.arm_lift = false;
+        this.is_jumping = false;
     }
 
     setMovement(program_state) {
@@ -48,9 +59,23 @@ export default class Player {
 
         if (this.position[1] < current_height + 5) {
             this.upwards_speed = 0
+            this.is_jumping = false;
             this.position[1] = current_height + 5
         }
         program_state.current_position = this.position
+    }
+
+    fire() {
+        this.arm_lift_time = 25;
+        this.arm_lift = true;
+    }
+
+    jump() {
+        if(!this.is_jumping) {
+            this.upwards_speed = 2;
+            this.is_jumping = true;
+        }
+
     }
 
     draw(context, program_state) {
@@ -63,49 +88,55 @@ export default class Player {
         this.limb_angle = program_state.player.current_speed
             ? (Math.PI / 3) * Math.sin(program_state.animation_time / 150)
             : 0;
-
+        this.lift_arm_angle = (Math.PI / 3) * Math.sin(5)
+        console.log(this.lift_arm_angle)
         this.left_arm = this.player_object
-            .times(Mat4.rotation(this.limb_angle/2, 0,1,0))
-            .times(Mat4.translation(-2, 1, 0))
-            .times(Mat4.rotation(-18, 0,0,5))
-            .times(Mat4.scale(3, 1, 1));
-        this.shapes.sphere.draw(context, program_state, this.left_arm, this.materials.plastic)
+            .times(Mat4.translation(-1.6, 0.25, 0))
+            .times(Mat4.scale(-1, 1, -1));
+
+        if(this.arm_lift) {
+            if (this.arm_lift_time == 0) {
+                this.arm_lift = false;
+            } else {
+                this.arm_lift_time--;
+            }
+
+            this.left_arm = this.left_arm
+                .times(Mat4.rotation(this.lift_arm_angle, 1,0,0))
+                .times(Mat4.translation(0,-5,2.5))
+        } else {
+            this.left_arm = this.left_arm
+                .times(Mat4.rotation(this.limb_angle/8, 0,1,0))
+
+        }
+        this.shapes.left_arm.draw(context, program_state, this.left_arm, this.materials.plastic)
 
         this.right_arm = this.player_object
-            .times(Mat4.rotation(this.limb_angle/2, 0,1,0))
-            .times(Mat4.translation(2, 1, 0))
-            .times(Mat4.rotation(18, 0,0,5))
-            .times(Mat4.scale(3, 1, 1));
-        this.shapes.sphere.draw(context, program_state, this.right_arm, this.materials.plastic)
+            .times(Mat4.rotation(this.limb_angle/8, 0,1,0))
+            .times(Mat4.translation(1.6, .25, 0))
+            .times(Mat4.scale(-1, 1, -1));
+        this.shapes.right_arm.draw(context, program_state, this.right_arm, this.materials.plastic)
 
         this.left_leg = this.player_object
-            .times(Mat4.scale(1,2,1))
-            .times(Mat4.translation(0, -2, 0))
-            .times(Mat4.translation(0, 2, 0))
-            .times(Mat4.rotation(this.limb_angle/2, 0,1,0))
-            .times(Mat4.rotation(10,0,0,5))
-            .times(Mat4.translation(0,2,0));
-        this.shapes.sphere.draw(context, program_state, this.left_leg, this.materials.plastic)
+            .times(Mat4.scale(-.75,.75,-.75))
+            .times(Mat4.translation(1, -2, 0))
+            .times(Mat4.rotation(this.limb_angle/3, 1,0,0))
+        this.shapes.left_leg.draw(context, program_state, this.left_leg, this.materials.plastic)
 
         this.right_leg = this.player_object
-            .times(Mat4.scale(1,2,1))
-            .times(Mat4.translation(0, -2, 0))
-            .times(Mat4.translation(0, 2, 0))
-            .times(Mat4.rotation(this.limb_angle/2, 0,1,0))
-
-            .times(Mat4.rotation(10,0,0,-5))
-            .times(Mat4.translation(0,2,0));
-        this.shapes.sphere.draw(context, program_state, this.right_leg, this.materials.plastic)
+            .times(Mat4.scale(-.75,.75,-.75))
+            .times(Mat4.translation(-1, -2, 0))
+            .times(Mat4.rotation(this.limb_angle/3, 1,0,0))
+        this.shapes.right_leg.draw(context, program_state, this.right_leg, this.materials.plastic)
 
         this.torso = this.player_object
-            .times(Mat4.scale(2,4,2))
-            .times(Mat4.translation(0, 0, 0));
-        this.shapes.sphere.draw(context, program_state, this.torso, this.materials.plastic)
+            .times(Mat4.scale(1.5,1.5,-1.5))
+            .times(Mat4.translation(0, 1, 0));
+        this.shapes.torso.draw(context, program_state, this.torso, this.materials.plastic)
 
         this.head = this.player_object
-            .times(Mat4.translation(0, 0, 0))
-            .times(Mat4.scale(1,1,1))
-            .times(Mat4.translation(0, 3.8, 0));
-        this.shapes.sphere.draw(context, program_state, this.head, this.materials.plastic)
+            .times(Mat4.translation(0, 3.3, 0))
+            .times(Mat4.scale(.5,.5,.5))
+        this.shapes.head.draw(context, program_state, this.head, this.materials.plastic)
     }
 }
