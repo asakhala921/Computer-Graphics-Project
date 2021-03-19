@@ -10,6 +10,7 @@ import Arena from '/Shapes/Arena.js';
 import World from '/Shapes/World.js';
 import Player from '/Shapes/Player.js';
 import Golem from '/Shapes/Golem_Dummy.js';
+import Text_Line from '/Shapes/Text_Line.js';
 
 const MAP_SIZE = 512;
 const HEIGHT_MAP_SIZE = 100;
@@ -59,7 +60,13 @@ export class Computer_Graphics_Project extends Scene{
 
         this.shapes = {
             platform: new defs.Capped_Cylinder(1, 10, [[0, 2], [0, 1]]),
+            text: new Text_Line(),
+            cube: new Cube(),
         }
+        this.text_image = new Material(new defs.Textured_Phong(1), {
+            ambient: 1, diffusivity: 0, specularity: 0,
+            texture: new Texture("assets/text.png")
+        });
         this.view = "third";
         this.world = new World();
         this.arena = new Arena();
@@ -69,6 +76,9 @@ export class Computer_Graphics_Project extends Scene{
         this.bullets = [];
         this.position = Vector.of(0,0,0);
         this.fire = false;
+        this.mouse_setup = false;
+        this.cube = Mat4.identity()
+            .times(Mat4.translation(0, 30, 0))
     }
 
     get_current_ground_height(row, column) {
@@ -131,8 +141,15 @@ export class Computer_Graphics_Project extends Scene{
         ))
     }
 
-    setFire(){
+    setFire(program_state){
         this.fire = !this.fire;
+        let bullet = {
+            start: this.player.position,
+            target: this.player.position,
+            start_time: program_state.animation_time,
+            end_time: program_state.animation_time + 10000
+        }
+        this.bullets.push(bullet)
         this.player.fire();
     }
 
@@ -144,18 +161,58 @@ export class Computer_Graphics_Project extends Scene{
         this.key_triggered_button("Jump", [" "], () => this.player.jump())
         this.key_triggered_button("First-Person", ["4"], () => this.view = "first");
         this.key_triggered_button("Third-Person", ["5"], () => this.view = "third");
-        this.key_triggered_button("swords dance", ["f"], this.setFire);
     }
 
-    display(context, program_state) {
-        if (!context.scratchpad.controls) {
-            // Define the global camera and projection matrices, which are stored in program_state.
-            program_state.set_camera(this.initial_camera_location);
+    mouse_controls(canvas) {
+        this.mouse_position = vec(0,0)
+        const mouse_position = (event, rect = canvas.getBoundingClientRect()) => {
+            this.mouse_position = vec(
+                (event.clientX - (rect.left + rect.right) / 2) / ((rect.right - rect.left) / 2),
+                (event.clientY - (rect.bottom + rect.top)/2) / ((rect.top - rect.bottom)/2)
+            );
+
         }
+
+        canvas.addEventListener("mousemove", e => {
+            e.preventDefault()
+            mouse_position(e)
+        })
+
+    }
+
+    mouse_click(e, context, program_state) {
+        let pos_ndc_near = vec4(this.mouse_position[0], this.mouse_position[1], -1.0, 1.0);
+        let pos_ndc_far = vec4(this.mouse_position[0], this.mouse_position[1], 1.0, 1.0);
+        let center_ndc_near = vec4(0.0, 0.0, -1.0, 1.0);
+        let P = program_state.projection_transform
+        let V = program_state.camera_inverse
+        let pos_world_near = Mat4.inverse(P.times(V)).times(pos_ndc_near);
+        let pos_world_far = Mat4.inverse(P.times(V)).times(pos_ndc_far);
+        let center_world_near = Mat4.inverse(P.times(V)).times(center_ndc_near);
+        pos_world_near.scale_by(1 / pos_world_near[3]);
+        pos_world_far.scale_by(1 / pos_world_far[3]);
+        center_world_near.scale_by(1 / center_world_near[1]);
+        this.cube = Mat4.translation(pos_world_near[0], 20, pos_world_near[2])
+    }
+
+
+    display(context, program_state) {
+        if (!this.mouse_setup) {
+            this.mouse_controls(context.canvas);
+            context.canvas.addEventListener("mousedown", e => {
+                e.preventDefault()
+                this.mouse_click(e, context, program_state)
+                this.setFire(program_state)
+            })
+            this.mouse_setup = true
+        }
+
+
         if (this.view == "third")
             this.third_person_view(this.player, program_state)
         if (this.view == "first")
             this.first_person_view(this.player, program_state)
+
 
         if(!program_state.floor_height)
             this.get_ground_heights(program_state)
@@ -171,7 +228,6 @@ export class Computer_Graphics_Project extends Scene{
         //var pos1= Mat4.identity().times(Mat4.translation(0, 0, -dist1));
         //this.bullets[0].draw(context, program_state, dist1); //pos1
 
-        
         this.player.setMovement(program_state)
         program_state.player = this.player
         
@@ -182,19 +238,15 @@ export class Computer_Graphics_Project extends Scene{
             //console.log(this.player.position);
             this.position = this.player.position;
         }
+
+        this.shapes.cube.draw(context, program_state, this.cube, this.text_image)
  
         var option = 0;
-        if(this.fire){
-            //console.log(this.bullets.length);
-            if(this.bullets.length == 0){
-                this.bullets.push(new Bullet(this.position[0]-0, this.position[1]-16, this.position[2]-100, myT, this.player.rotation[1] ));
+        if(this.bullets.length > 0) {
+            for(let i = 0; i < this.bullets.length; i++) {
+                let bullet = this.bullets[i];
+                //this.bullet.draw(context, program_state, )
             }
-            else{
-                option = this.bullets[0].draw(context, program_state, myT); //pos1
-            }
-        }
-        else{
-            this.bullets.pop();
         }
 
         this.world.draw(context, program_state, option);
