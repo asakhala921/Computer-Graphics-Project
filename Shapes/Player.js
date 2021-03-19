@@ -56,10 +56,10 @@ export default class Player {
         this.position = this.position.plus(Vector.of(x, this.upwards_speed, z))
         const current_height = program_state.floor_height[Math.floor(MAP_SIZE/2 + this.position[0])][Math.floor(MAP_SIZE/2 + this.position[2])]
 
-        if (this.position[1] < current_height + 5) {
+        if (this.position[1] < current_height + 2.5) {
             this.upwards_speed = 0
             this.is_jumping = false;
-            this.position[1] = current_height + 5
+            this.position[1] = current_height + 2.5
         }
         program_state.current_position = this.position
     }

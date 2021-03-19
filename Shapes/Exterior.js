@@ -11,10 +11,10 @@ export default class Exterior extends Shape {
         let stageSize = 50
         let offSet = 10
         super("position", "normal", "texture_coord");
-        Half_Torus.insert_transformed_copy_into(this, [10, 10, [[0, 2], [0, 2]]], Mat4.translation(0, 14, stageSize + offSet).times(Mat4.rotation(Math.PI,0,0,Math.PI).times(Mat4.scale(15,4,5)))) // Top
+        Half_Torus.insert_transformed_copy_into(this, [10, 10, [[0, 2], [0, 2]]], Mat4.translation(0, 10, stageSize + offSet).times(Mat4.rotation(Math.PI,0,0,Math.PI).times(Mat4.scale(15,4,5)))) // Top
         //Cube.insert_transformed_copy_into(this, [], Mat4.translation(0,14, stageSize + offSet).times(Mat4.scale(5,1,1))) // Blocky Roof
-        Cube.insert_transformed_copy_into(this, [], Mat4.translation(8,0, stageSize + offSet).times(Mat4.scale(1,14,1))) //Right Pillar
-        Cube.insert_transformed_copy_into(this, [], Mat4.translation(-8,0, stageSize + offSet).times(Mat4.scale(1,14,1))) //Left Pillar
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(8,0, stageSize + offSet).times(Mat4.scale(1,10,1))) //Right Pillar
+        Cube.insert_transformed_copy_into(this, [], Mat4.translation(-8,0, stageSize + offSet).times(Mat4.scale(1,10,1))) //Left Pillar
 
         Cube.insert_transformed_copy_into(this, [], Mat4.translation(-(stageSize + offSet)/2 - 4,0, stageSize + offSet).times(Mat4.scale((stageSize + offSet)/2 - 4,8,.5))) //Left-Front Wall
         Cube.insert_transformed_copy_into(this, [], Mat4.translation((stageSize + offSet)/2 + 4,0, stageSize + offSet).times(Mat4.scale((stageSize + offSet)/2 - 4,8,.5))) //Left-Front Wall

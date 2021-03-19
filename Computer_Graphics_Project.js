@@ -82,7 +82,7 @@ export class Computer_Graphics_Project extends Scene{
             portal: new Torus( 5, 30)
         }
 
-
+        this.program_state = null;
         this.text_image = new Material(new defs.Textured_Phong(1), {
             ambient: 1, diffusivity: 0, specularity: 0,
             texture: new Texture("assets/text.png")
@@ -166,8 +166,11 @@ export class Computer_Graphics_Project extends Scene{
 
         let bullet = {
             start: this.player.player_object,
-            yOffset: (Math.round(Math.random()) * 2 - 1) * Math.random() * 3,
-            xOffset: (Math.round(Math.random()) * 2 - 1) * Math.random() * 3,
+            yOffset: (Math.round(Math.random()) * 2 - 1) * Math.random() * 5 + 3,
+            xOffset: (Math.round(Math.random()) * 2 - 1) * Math.random() * 8,
+            currDistance: 0,
+            currRotation: 0,
+            collision: false,
             start_time: program_state.animation_time,
             delay_time: program_state.animation_time + 500,
             end_time: program_state.animation_time + 10000
@@ -175,6 +178,13 @@ export class Computer_Graphics_Project extends Scene{
         this.bullets.push(bullet)
         this.player.fire();
     }
+
+    multiFire(){
+        for (let i = 0; i < 50; i++) {
+            this.setFire(this.program_state)
+        }
+    }
+
 
     make_control_panel() {
         this.key_triggered_button("Player Forward", ["w"], () => this.player.current_speed = -this.player.run_speed, undefined, () => this.player.current_speed = 0);
@@ -184,6 +194,7 @@ export class Computer_Graphics_Project extends Scene{
         this.key_triggered_button("Jump", [" "], () => this.player.jump())
         this.key_triggered_button("First-Person", ["4"], () => this.view = "first");
         this.key_triggered_button("Third-Person", ["5"], () => this.view = "third");
+        this.key_triggered_button("Sword Wall", ["g"], () => this.multiFire())
     }
 
     mouse_controls(canvas) {
@@ -225,11 +236,10 @@ export class Computer_Graphics_Project extends Scene{
             context.canvas.addEventListener("mousedown", e => {
                 e.preventDefault()
                 this.mouse_click(e, context, program_state)
-
             })
             this.mouse_setup = true
         }
-
+        this.program_state = program_state
 
         if (this.view == "third")
             this.third_person_view(this.player, program_state)
@@ -266,20 +276,29 @@ export class Computer_Graphics_Project extends Scene{
                 if (t <= bullet.end_time && t >= bullet.start_time) {
                     let animation_process = 0
                     if (t >= bullet.delay_time) {
-                        animation_process = (t - bullet.delay_time) / (bullet.end_time - bullet.delay_time)
+                        animation_process = (t - bullet.delay_time) / (bullet.end_time - bullet.delay_time) * 500
+                    }
+                    if (bullet.collision) {
+                        animation_process = bullet.currDistance
+                    } else {
+                        this.bullets[i].currDistance = animation_process
+                        this.bullets[i].currRotation = Math.PI * t/1000
                     }
                     let sword_trans = bullet.start
-                        .times(Mat4.translation(bullet.xOffset, bullet.yOffset, 7 - animation_process * 500))
+                        .times(Mat4.translation(bullet.xOffset, bullet.yOffset, -7 - animation_process))
                         .times(Mat4.rotation(-Math.PI/2, 1, 0,0))
+                        .times(Mat4.rotation(bullet.currRotation, 0, 1, 0))
                     let portal_trans = bullet.start
-                        .times(Mat4.translation(bullet.xOffset, bullet.yOffset,8.6))
+                        .times(Mat4.translation(bullet.xOffset, bullet.yOffset,-5))
                         .times(Mat4.scale(1,1,.1))
+                    if (this.golem.is_colliding(sword_trans)) {
+                        this.bullets[i].collision = true
+                    }
                     this.shapes.sword.draw(context, program_state, sword_trans, this.materials.stars)
                     if (t <= bullet.delay_time + 1000) {
                         this.shapes.portal.draw(context, program_state, portal_trans, this.materials.portal)
                     }
                 }
-
             }
         }
 
