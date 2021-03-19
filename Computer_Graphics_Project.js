@@ -3,7 +3,7 @@ import {defs, tiny} from '/examples/common.js';
 const {
     Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture
 } = tiny;
-const {Triangle, Square, Cube, Subdivision_Sphere, Textured_Phong, Surface_Of_Revolution} = defs;
+const {Triangle, Torus, Cube, Subdivision_Sphere, Textured_Phong, Surface_Of_Revolution} = defs;
 
 import Shape_From_File from '/Shapes/Shape_From_File.js';
 import Arena from '/Shapes/Arena.js';
@@ -11,6 +11,7 @@ import World from '/Shapes/World.js';
 import Player from '/Shapes/Player.js';
 import Golem from '/Shapes/Golem_Dummy.js';
 import Text_Line from '/Shapes/Text_Line.js';
+import Portal_Shader from "./Shaders/Portal_Shader.js";
 
 const MAP_SIZE = 512;
 const HEIGHT_MAP_SIZE = 100;
@@ -58,11 +59,30 @@ export class Computer_Graphics_Project extends Scene{
     constructor(){
         super();
 
+        this.materials = {
+            stars: new Material(new defs.Textured_Phong(1), {
+                ambient: 1.0,
+                color: hex_color("#000000"),
+                texture: new Texture("../assets/stars.png")
+            }),
+            portal: new Material(new Portal_Shader(), {
+                ambient: 1.0,
+                specularity: 1,
+                color: hex_color("#000000"),
+                texture: new Texture("../assets/fire.jpg")
+
+            }),
+        }
+
         this.shapes = {
             platform: new defs.Capped_Cylinder(1, 10, [[0, 2], [0, 1]]),
             text: new Text_Line(),
             cube: new Cube(),
+            sword: new Shape_From_File("../assets/Single-handed_longsword.obj"),
+            portal: new Torus( 5, 30)
         }
+
+
         this.text_image = new Material(new defs.Textured_Phong(1), {
             ambient: 1, diffusivity: 0, specularity: 0,
             texture: new Texture("assets/text.png")
@@ -72,7 +92,7 @@ export class Computer_Graphics_Project extends Scene{
         this.arena = new Arena();
         this.player = new Player();
         this.golem = new Golem();
-        this.initial_camera_location = Mat4.look_at(vec3(0, 20, 40), vec3(0, 20, 0), vec3(0, 1, 0));
+
         this.bullets = [];
         this.position = Vector.of(0,0,0);
         this.fire = false;
@@ -143,10 +163,13 @@ export class Computer_Graphics_Project extends Scene{
 
     setFire(program_state){
         this.fire = !this.fire;
+
         let bullet = {
-            start: this.player.position,
-            target: this.player.position,
+            start: this.player.player_object,
+            yOffset: (Math.round(Math.random()) * 2 - 1) * Math.random() * 3,
+            xOffset: (Math.round(Math.random()) * 2 - 1) * Math.random() * 3,
             start_time: program_state.animation_time,
+            delay_time: program_state.animation_time + 500,
             end_time: program_state.animation_time + 10000
         }
         this.bullets.push(bullet)
@@ -181,7 +204,8 @@ export class Computer_Graphics_Project extends Scene{
     }
 
     mouse_click(e, context, program_state) {
-        let pos_ndc_near = vec4(this.mouse_position[0], this.mouse_position[1], -1.0, 1.0);
+        /*
+        let pos_ndc_near = vec4(this.mouse_position[0], this.mouse_position[1], 0, 1.0);
         let pos_ndc_far = vec4(this.mouse_position[0], this.mouse_position[1], 1.0, 1.0);
         let center_ndc_near = vec4(0.0, 0.0, -1.0, 1.0);
         let P = program_state.projection_transform
@@ -191,10 +215,9 @@ export class Computer_Graphics_Project extends Scene{
         let center_world_near = Mat4.inverse(P.times(V)).times(center_ndc_near);
         pos_world_near.scale_by(1 / pos_world_near[3]);
         pos_world_far.scale_by(1 / pos_world_far[3]);
-        center_world_near.scale_by(1 / center_world_near[1]);
-        this.cube = Mat4.translation(pos_world_near[0], 20, pos_world_near[2])
+        center_world_near.scale_by(1 / center_world_near[1]);*/
+        this.setFire(program_state)
     }
-
 
     display(context, program_state) {
         if (!this.mouse_setup) {
@@ -202,7 +225,7 @@ export class Computer_Graphics_Project extends Scene{
             context.canvas.addEventListener("mousedown", e => {
                 e.preventDefault()
                 this.mouse_click(e, context, program_state)
-                this.setFire(program_state)
+
             })
             this.mouse_setup = true
         }
@@ -218,15 +241,12 @@ export class Computer_Graphics_Project extends Scene{
             this.get_ground_heights(program_state)
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, .1, 1000);
-        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
+        const t = program_state.animation_time, dt = program_state.animation_delta_time / 1000;
 
         const light_position = vec4(75, 75, 75, 1);
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
 
-        const myT = program_state.animation_time / 1000, dmyT = program_state.animation_delta_time / 1000;
-        var dist1 = (myT*10)%58;
-        //var pos1= Mat4.identity().times(Mat4.translation(0, 0, -dist1));
-        //this.bullets[0].draw(context, program_state, dist1); //pos1
+
 
         this.player.setMovement(program_state)
         program_state.player = this.player
@@ -235,17 +255,39 @@ export class Computer_Graphics_Project extends Scene{
         this.arena.draw(context, program_state);
         this.golem.draw(context, program_state);
         if(!this.player.position.equals(this.position)){
-            //console.log(this.player.position);
             this.position = this.player.position;
         }
 
-        this.shapes.cube.draw(context, program_state, this.cube, this.text_image)
- 
         var option = 0;
         if(this.bullets.length > 0) {
             for(let i = 0; i < this.bullets.length; i++) {
                 let bullet = this.bullets[i];
-                //this.bullet.draw(context, program_state, )
+
+                if (t <= bullet.end_time && t >= bullet.start_time) {
+                    let animation_process = 0
+                    if (t >= bullet.delay_time) {
+                        animation_process = (t - bullet.delay_time) / (bullet.end_time - bullet.delay_time)
+                    }
+                    let sword_trans = bullet.start
+                        .times(Mat4.translation(bullet.xOffset, bullet.yOffset, 7 - animation_process * 500))
+                        .times(Mat4.rotation(-Math.PI/2, 1, 0,0))
+                    let portal_trans = bullet.start
+                        .times(Mat4.translation(bullet.xOffset, bullet.yOffset,8.6))
+                        .times(Mat4.scale(1,1,.1))
+                    this.shapes.sword.draw(context, program_state, sword_trans, this.materials.stars)
+                    if (t <= bullet.delay_time + 1000) {
+                        this.shapes.portal.draw(context, program_state, portal_trans, this.materials.portal)
+                    }
+                }
+
+            }
+        }
+
+        while (this.bullets.length > 0) {
+            if (t > this.bullets[0].end_time) {
+                this.bullets.shift()
+            } else {
+                break;
             }
         }
 

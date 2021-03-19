@@ -20,7 +20,6 @@ export default class Player {
             right_arm: new Shape_From_File("../assets/baymax/baymax_rightarm.obj"),
             left_arm: new Shape_From_File("../assets/baymax/baymax_leftarm.obj"),
 
-
         }
 
         this.materials = {
@@ -85,10 +84,12 @@ export default class Player {
             .times(Mat4.scale(1,1 , 1))
             .times(Mat4.translation(this.position[0], this.position[1], this.position[2]))
             .times(Mat4.rotation(Math.PI * this.rotation[1], 0, 1, 0))
+
         this.limb_angle = program_state.player.current_speed
             ? (Math.PI / 3) * Math.sin(program_state.animation_time / 100)
             : 0;
         this.lift_arm_angle = (Math.PI / 3) * Math.sin(5)
+
 
         this.left_arm = this.player_object
             .times(Mat4.translation(-1.6, 0.25, 0))
