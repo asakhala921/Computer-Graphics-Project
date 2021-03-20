@@ -4,7 +4,10 @@
 
 ##Introduction
 ###Group Members
-Kevin Yao, Gaohong Liu, Xilai Zhang, Atharv Sakhala
+Kevin Yao - 20551530
+Gaohong Liu
+Xilai Zhang
+Atharv Sakhala
 
 ### Background
 When we first started the project, we were interested in creating a game, and in the end, we decided to create something akin to an arena battle, that was in part inspired by a simple tournament stage.
