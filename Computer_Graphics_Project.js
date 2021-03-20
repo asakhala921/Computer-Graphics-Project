@@ -106,11 +106,11 @@ export class Computer_Graphics_Project extends Scene{
     first_person_view(player, program_state) {
         const theta = -player.rotation[1] * 180
         const x_offset = 30 * Math.sin(2 * Math.PI / 360 * theta)
-        const y_offset = 10 * Math.sin(2 * Math.PI / 360 * 20)
+        const y_offset = 5 * Math.sin(2 * Math.PI / 360 * 20)
         const z_offset = 30 * Math.cos(2 * Math.PI / 360 * theta)
         let camera_position = Vector.of(0,0,0)
         camera_position[0] = player.position[0] + 5 * Math.sin(2 * Math.PI / 360 * theta)
-        camera_position[1] = player.position[1] + 4 * Math.sin(2 * Math.PI / 360 * 20)
+        camera_position[1] = player.position[1] + 7 * Math.sin(2 * Math.PI / 360 * 20)
         camera_position[2] = player.position[2] - 3 * Math.cos(2 * Math.PI / 360 * theta)
         let look_at_position = Vector.of(0,0,0)
         look_at_position[0] = player.position[0] + x_offset
