@@ -3,7 +3,7 @@ import {defs, tiny} from '/examples/common.js';
 const {
    Mat4,Material, Texture
 } = tiny;
-const {Cube} = defs;
+const {Cube, Subdivision_Sphere} = defs;
 
 import Ground from '../Shapes/Ground.js';
 import Water from '../Shapes/Water.js';
@@ -33,7 +33,6 @@ export default class World {
         this.frontWall = Mat4.identity()
             .times(Mat4.translation(0,this.size/2,-this.size))
             .times(Mat4.scale(this.size, this.size, 1))
-        //console.log("this front wall is "+this.frontWall);
         this.backWall = Mat4.identity()
             .times(Mat4.translation(0,this.size/2,this.size))
             .times(Mat4.scale(this.size, this.size, 1))
@@ -50,33 +49,15 @@ export default class World {
 
 
 
-    draw(context, program_state, option) {
+    draw(context, program_state) {
         this.ground.draw(context, program_state)
         this.water.draw(context, program_state)
-        //console.log("passed in option is "+option);
-        if(option == 1){
-            this.shapes.cube.draw(context, program_state, this.frontWall, this.materials.explode);
-        }
-        else{
-            this.shapes.cube.draw(context, program_state, this.frontWall, this.materials.sky);
-        }
-        if( option == 2){
-            this.shapes.cube.draw(context, program_state, this.backWall, this.materials.explode);
-        }else{
-            this.shapes.cube.draw(context, program_state, this.backWall, this.materials.sky);
-        }
-        if(option == 3){
-            this.shapes.cube.draw(context, program_state, this.leftWall, this.materials.explode);
-        }
-        else{
-            this.shapes.cube.draw(context, program_state, this.leftWall, this.materials.sky);
-        }
-        if(option == 4){
-            this.shapes.cube.draw(context, program_state, this.rightWall, this.materials.explode);
-        }else{
-            this.shapes.cube.draw(context, program_state, this.rightWall, this.materials.sky);
-        }
-        
+
+        this.shapes.cube.draw(context, program_state, this.frontWall, this.materials.sky);
+        this.shapes.cube.draw(context, program_state, this.backWall, this.materials.sky);
+        this.shapes.cube.draw(context, program_state, this.leftWall, this.materials.sky);
+        this.shapes.cube.draw(context, program_state, this.rightWall, this.materials.sky);
+
         this.shapes.cube.draw(context, program_state, this.top, this.materials.sky)
 
     }

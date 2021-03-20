@@ -19,7 +19,7 @@ export default class Golem_Dummy {
             metal: new Material(new defs.Textured_Phong(1), {
                 ambient: 1.0,
                 color: hex_color("#000000"),
-                texture: new Texture("../assets/darkmetal.jpeg")
+                texture: new Texture("../assets/darkmetal.png")
             }),
         }
 

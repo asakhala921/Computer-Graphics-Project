@@ -16,45 +16,6 @@ import Portal_Shader from "./Shaders/Portal_Shader.js";
 const MAP_SIZE = 512;
 const HEIGHT_MAP_SIZE = 100;
 
-class Bullet{
-    constructor(px, py, pz, timestamp, angle){
-        this.shapes = {
-            ball: new  defs.Subdivision_Sphere(4),
-            sword: new Shape_From_File("../assets/Single-handed_longsword.obj")
-        }
-        this.materials = {
-            sun: new Material(new defs.Textured_Phong(1), {
-                ambient: 1.0,
-                color: hex_color("#000000"),
-                texture: new Texture("../assets/stars.png")
-            }),
-        }
-        this.px = px;
-        this.py = py;
-        this.pz = pz;
-        this.timestamp = timestamp;
-        this.angle = angle;
-        this.m1 = Mat4.identity().times(Mat4.translation(0, 25, 0)).times(Mat4.translation(3.6, -7, +100));
-        //remember to undo-scaling
-    }
-
-
-    draw(context, program_state, currentTime) {
-        var pos1 = this.px -(currentTime - this.timestamp)*50 * Math.sin(Math.PI * this.angle);
-        var pos3 = this.pz -(currentTime - this.timestamp)*50 * Math.cos(Math.PI * this.angle);
-        var currentPos = this.m1.times(Mat4.translation(pos1, this.py, pos3));
-        var newM = currentPos.times(Mat4.rotation(Math.PI * this.angle, 0 ,1,0)).times(Mat4.scale(2, 2, 2));
-        //console.log("mat is "+newM);
-        this.shapes.sword.draw(context, program_state, newM, this.materials.sun);
-        var opt = 0;
-        if(pos1< -256){opt = 3;}
-        if(pos1>256){opt =4;}
-        if(pos3<-350){opt = 1;}
-        if(pos3> 160){opt=2;}
-        return opt;
-    }
-}
-
 export class Computer_Graphics_Project extends Scene{
     constructor(){
         super();
@@ -251,7 +212,7 @@ export class Computer_Graphics_Project extends Scene{
             this.get_ground_heights(program_state)
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, .1, 1000);
-        const t = program_state.animation_time, dt = program_state.animation_delta_time / 1000;
+        const t = program_state.animation_time
 
         const light_position = vec4(75, 75, 75, 1);
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
@@ -268,7 +229,6 @@ export class Computer_Graphics_Project extends Scene{
             this.position = this.player.position;
         }
 
-        var option = 0;
         if(this.bullets.length > 0) {
             for(let i = 0; i < this.bullets.length; i++) {
                 let bullet = this.bullets[i];
@@ -310,7 +270,7 @@ export class Computer_Graphics_Project extends Scene{
             }
         }
 
-        this.world.draw(context, program_state, option);
+        this.world.draw(context, program_state);
     }
 }
 
