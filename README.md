@@ -16,6 +16,9 @@ Atharv Sakhala
 ### Background
 When we first started the project, we were interested in creating a game, and in the end, we decided to create something akin to an arena battle, that was in part inspired by a simple tournament stage.
 
+From here, we wanted the possibility of creating a training dummy which the player could interact with and attack. We decided to implement this using ranged attacks.
+
+The core of this project was all created using the tiny-graphics.js as a base and expanded upon.
 ## Features
 - [x] First Person Camera
 - [x] Third Person Camera
