@@ -5,8 +5,11 @@
 ##Introduction
 ###Group Members
 Kevin Yao - 20551530
+
 Gaohong Liu
+
 Xilai Zhang
+
 Atharv Sakhala
 
 ### Background
