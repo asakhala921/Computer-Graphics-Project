@@ -2,8 +2,9 @@
 ## Arena Battle
 ![alt text](images/starting_image.png)
 
-##Introduction
-###Group Members
+## Introduction
+### Group Members
+
 Kevin Yao - 20551530
 
 Gaohong Liu
